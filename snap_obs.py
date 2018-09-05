@@ -2,7 +2,7 @@
 
 '''
  Name: snap_obs.py
- Author: Jon Richards, SETI Instiotute
+ Author: Jon Richards, SETI Institute
  Date: August/Sept 2018
  Note: This program was originally called snap_observation_run.py written by 
     Jack Hicish. It has been modified by Jon Richards to handle multiple RF 
