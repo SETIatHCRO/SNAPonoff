@@ -27,22 +27,27 @@ import os
 import sys
 #from ata_snap import ata_control
 from subprocess import Popen, PIPE
+import time
 import argparse
 import logging
 import ata_control
 import snap_array_helpers
 import snap_onoffs_contants
 import snap_obs_selector
+import snap_obs_db
+import snap_control
+
+default_fpga_file = "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg"
 
 #SNAP ant connections. SNAP2 not working yet
 snaps = {
             "snap0" : ['2a','2b','2e','3l','1f','5c','4l','4g'],
             "snap1" : ['2j','2d','4k','1d','2f','5h','3j','3e']
-            #"snap2" : "1ax,1bx,1gx,1hx,2kx,2mx,3dx,4jx,1ay,1by,1gy,1hy,2ky,2my,3dy,4jy"
+            #"snap2" : "one-ax,1bx,1gx,1hx,2kx,2mx,3dx,4jx,1ay,1by,1gy,1hy,2ky,2my,3dy,4jy"
         }
 defaultAntArg = snap_array_helpers.dict_values_to_string(snaps, True)
 defaultSNAPHostnames = snap_array_helpers.dict_keys_to_array(snaps, True)
-hostnamesHelpString = "Hostnames / IP of SNAPs, eg: %s,%s (no quotes necessary), or just one like %s" %  \
+hostnamesHelpString = "List of SNAP hostnames: %s,%s (no quotes necessary), or just one like %s" %  \
     (defaultSNAPHostnames[0], defaultSNAPHostnames[1], defaultSNAPHostnames[0])
 
 # Init the logger
@@ -58,7 +63,7 @@ parser = argparse.ArgumentParser(description='Run an observation with multiple a
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('hosts', type=str, help = hostnamesHelpString)
-parser.add_argument('fpgfile', type=str,
+parser.add_argument('-fp', dest='fpga_file', type=str, default=default_fpga_file,
                     help = '.fpgfile to program')
 #parser.add_argument('-s', dest='srate', type=float, default=900.0,
 #                    help ='Sample rate in MHz for non-interleaved band. Used for spectrum axis scales')
@@ -90,13 +95,15 @@ ant_groups = snap_array_helpers.string_to_array(args.ants);
 logger.info("Ant groups are: %s, len=%d" % (str(ant_groups), len(ant_groups)))
 pointings = snap_array_helpers.string_to_array(args.pointings);
 logger.info("Sources are: %s" % str(pointings))
-freqs = snap_array_helpers.string_to_numeric_array(args.freqs);
-logger.info("Frequency list is: %s" % str(freqs))
-hosts = snap_array_helpers.string_to_array(args.hosts)
-logger.info("SNAP host list is: %s" % str(hosts))
-ant_list_string = snap_array_helpers.array_to_string(ant_groups)
-logger.info("Full ant list is: %s" % ant_list_string )
+freq_list = snap_array_helpers.string_to_numeric_array(args.freqs);
+logger.info("Frequency list is: %s" % str(freq_list))
+snap_list = snap_array_helpers.string_to_array(args.hosts)
+logger.info("SNAP host list is: %s" % str(snap_list))
+full_ant_list_string = snap_array_helpers.array_to_string(ant_groups)
+logger.info("Full ant list is: %s" % full_ant_list_string )
 offs = snap_array_helpers.string_to_numeric_array(args.off)
+az_offset = offs[0]
+el_offset = offs[1]
 logger.info("Off position: Az=%3.2f, El=%2.2f" % (offs[0], offs[1]))
 
 # Create the list of antenna, merging all antenna groups
@@ -119,7 +126,7 @@ for name, snap_antlist in snaps.items():
 ata_control.set_atten_thread(ant_list_for_attenuators, db_list, False)
 
 # Reserve the antennas
-logger.info("Reserving antennas %s in bfa antgroup" % ant_list_string)
+logger.info("Reserving antennas %s in bfa antgroup" % full_ant_list_string)
 ata_control.reserve_antennas(ants)
 
 # Set the PAMs
@@ -132,59 +139,82 @@ for ant in ants:
 #ata_control.rf_switch_thread(ant_list_for_attenuators, True);
 
 #test the release
-ata_control.release_antennas(ants, True)
+#ata_control.release_antennas(ants, True)
 
-#exit here is testing
-sys.exit()
+#exit here in testing
+#sys.exit()
 
-while(0):
-
-    pointing = snap_obs_selector.get_next(snap_list, source_list, ant_list, freq_list)
-
+current_source = ""
+current_obsid = -1
+current_freq = 0.0
+obsid = -1
 
 try:
-    for pointing in pointings:
-        pointing_spl = pointing.split('_')
-        if len(pointing_spl) == 1:
-            source = pointing
-            az_offset = 0
-            el_offset = 0
-        else:
-            source = pointing_spl[0]
-            az_offset = pointing_spl[1]
-            el_offset = pointing_spl[2]
-        logger.info("Requested pointing is source: %s, az_offset: %.1f, el_offset: %.1f" % (source, az_offset, el_offset))
-        for freq in freqs:
-            logger.info("Requested tuning is %.2f" % freq)
-            ata_control.write_obs_to_db(source, freq, az_offset, el_offset, ants)
-            obsid = ata_control.get_latest_obs()
-            logger.info("Obs ID is %d" % obsid)
-            for antn, ant in enumerate(ants):
-                for repetition in range(args.repetitions):
-                    if args.off is not None:
-                        off_az_off, off_el_off = map(float, args.off.split('_'))
-                        for onoff in ["on", "off"]:
-                            logger.info("Capturing data for antenna %s, %s iteration %d" % (ant, onoff, repetition))
-                            if onoff == "on":
-                                ata_control.point(source, freq)
-                            elif onoff == "off":
-                                ata_control.point(source, freq, off_az_off, off_el_off)
+    while(1):
 
-                            ata_control.set_rf_switch(0, anum)
-                            ata_control.set_rf_switch(1, anum)
-                            #ata_control.set_rf_switch(0, antn)
-                            #ata_control.set_rf_switch(1, antn)
-                            proc = Popen(["python", "/usr/local/bin/snap_take_spec_data.py", args.host, args.fpgfile, "-n", "%d" % args.ncaptures, "-a", ant, "-c", "%s_%s_%03d_ant_%s_%.2f_obsid%d" % (source, onoff, repetition, ant, freq, obsid)])
-                            proc.wait()
-                    else:
-                        onoff = "on"
-                        logger.info("Capturing data for antenna %s, %s iteration %d" % (ant, onoff, repetition))
-                        ata_control.point(source, freq)
-                        ata_control.rf_switch_ant(ant, 'x')
-                        ata_control.rf_switch_ant(ant, 'y')
-                        proc = Popen(["python", "/usr/local/bin/snap_take_spec_data.py", args.host, args.fpgfile, "-n", "%d" % args.ncaptures, "-a", ant, "-c", "%s_%s_%03d_ant_%s_%.2f_obsid%d" % (source, onoff, repetition, ant, freq, obsid)])
-                        proc.wait()
-            ata_control.end_obs()
+        # Get the next source, freq and ants to observe.
+        # get_next will return like:
+        #   {'source': 'casa', 'freq': 1000.0, 'ants': ['2b', '2j']}
+        # or if not up:
+        #   { "status" : "none_up", "next_up" : "casa", "minutes" : 200 }
+        # or if there are none up, all are below the horizon, sun and moon angle: None
+        print snap_list
+        print pointings
+        print ant_groups
+        print freq_list
+        obs_params = snap_obs_selector.get_next(snap_list, pointings, ant_groups, freq_list)
+        logger.info(obs_params)
+        print obs_params
+        if(obs_params == None or obs_params['status'] == "none_up"):
+            if(obs_params == None):
+                logger.info("Attempted to get next up, None was returned. Waiting and trying again...")
+            else:
+                logger.info( "No sources up yet, next is %s in %d minutes" % (obs_params['next_up'], obs_params['minutes']))
+            secs_to_wait = 10
+            while(secs_to_wait > 0):
+                time.sleep(1)
+                secs_to_wait -= 1
+            continue
+        else:
+            logger.info(obs_params)
+
+        # Record in the database a new obsid
+        # Only if the source changed or the frequency changed
+        if(current_source != obs_params['source'] or current_freq != obs_params['freq']):
+
+            this_ant_string = str(obs_params['ants']).replace("'", "").replace("]","").replace("[","").replace(" ","")
+            print this_ant_string
+            status = snap_obs_db.start_new_obs(this_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
+            obsid = -1
+            if "obsid" in status:
+                obsid = status["obsid"]
+                current_freq = obs_params['freq']
+            else:
+                logger.info("ERROR: Tried to create and record in db, got error. Tring again after a 10 seconds wait...")
+                time.sleep(10)
+                continue
+
+        # get the source name
+        source = obs_params['source']
+
+        # Create the ephemers files ahead of time for this source and on,off pointing
+        if(current_source != source): 
+            logger.info("Create ephems: %s" % ata_control.create_ephems(source, offs[0], offs[1]));
+            logger.info("Move all ants on target: %s" % ata_control.point_ants("on", full_ant_list_string ));
+            current_source = source
+
+        ants_to_observe = str(obs_params['ants']).replace("'", "").replace("[", "").replace("]", "").replace(" ","")
+
+        print "ANTS_TO_OBSERVE=%s, snaps = %s" % (ants_to_observe, args.hosts)
+
+        snap_control.do_onoff_obs(args.hosts, \
+                "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
+                source, 16, 2, ants_to_observe, 1000.0, obsid, 0.0, 10.0)
+
+
 except KeyboardInterrupt:
     exit()
+
+
+
 

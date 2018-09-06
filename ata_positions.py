@@ -20,6 +20,9 @@ import math
 from astropy import units as u
 from astropy.coordinates import Angle
 
+MIN_MOON_SUN_DIST = 45.0
+MIN_ELEV = 30.0
+
 class ATAPositions:
 
     def __init__(self):
@@ -42,7 +45,7 @@ class ATAPositions:
             else:
                 moon_angle = ATAPositions.angular_distance('moon', s)
             is_up = pos.isUp(s)
-            if(is_up == True and sun_angle >= 45.0 and moon_angle >= 45.0):
+            if(is_up == True and sun_angle >= MIN_MOON_SUN_DIST and moon_angle >= MIN_MOON_SUN_DIST):
               info = pos.getAzEl(dt.datetime.now(), s)
               return { 'status' : 'up', 'source' : s, 'az' : info['az'], 'el' : info['el'] }
 
@@ -62,7 +65,7 @@ class ATAPositions:
                 else:
                     moon_angle = ATAPositions.angular_distance('moon', s, d)
                 is_up = pos.isUp(s, d)
-                if(is_up == True and sun_angle >= 45.0 and moon_angle >= 45.0):
+                if(is_up == True and sun_angle >= MIN_MOON_SUN_DIST and moon_angle >= MIN_MOON_SUN_DIST):
                     info = pos.getAzEl(d, s)
                     return { 'status' : 'next_up', 'source' : s, 'az' : info['az'], \
                             'el' : info['el'], "minutes" : future_minutes }
@@ -70,7 +73,6 @@ class ATAPositions:
 
 
         return None
-
 
     def getSunAzEl(self, d=None):
         if(d == None):
@@ -135,7 +137,7 @@ class ATAPositions:
 
         loc = self.getAzEl(d, name, ra, dec)
         #print "isUp: %f" % loc['el']
-        if(loc['el'] > 30.0):
+        if(loc['el'] > MIN_ELEV):
             return True
         return False
 

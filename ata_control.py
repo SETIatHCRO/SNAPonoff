@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """
 Python wrappers for various command line
 tools at the ATA.
@@ -9,10 +11,12 @@ setup.
 
 from subprocess import Popen, PIPE
 import socket
+import ast
 import logging
 from threading import Thread
 import snap_array_helpers
 import snap_onoffs_contants
+from plumbum import local
 
 RF_SWITCH_HOST = "nsg-work1"
 ATTEN_HOST = "nsg-work1"
@@ -238,3 +242,23 @@ def get_ra_dec(source, deg=True):
         dec_sg = "%+d:%d:%.4f" % (int(dec), int(decm), decs)
         return ra_sg, dec_sg
 
+def create_ephems(source, az_offset, el_offset):
+
+    ssh = local["ssh"]
+    cmd = ssh[("obs@tumulus", "cd /home/obs/NSG;./create_ephems.rb %s %.2f %.2f" % (source, az_offset, el_offset))]
+    result = cmd()
+    return ast.literal_eval(result)
+
+
+def point_ants(on_or_off, ant_list):
+
+    ssh = local["ssh"]
+    cmd = ssh[("obs@tumulus", "cd /home/obs/NSG;./point_ants_onoff.rb %s %s" % (on_or_off, ant_list))]
+    result = cmd()
+    return ast.literal_eval(result)
+
+if __name__== "__main__":
+
+    print create_ephems("casa", 10.0, 5.0)
+    print point_ants("on", "1a,1b")
+    print point_ants("off", "1a,1b")

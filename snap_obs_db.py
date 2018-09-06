@@ -74,7 +74,9 @@ def start_new_obs(antlist, freq, target, az_offset, el_offset):
                         freq=%.3f, target='%s', az_offset=%f, el_offset=%.2f" %
                         (antlist, freq, target, az_offset, el_offset));
     if(result['status'] == "OK"):
-        return { "status" : "OK", "details" : "New obs with id = %d recorded as started" % get_most_recent_obsid() }
+        obsid = get_most_recent_obsid()
+        return { "status" : "OK", "obsid" : obsid, \
+                "details" : "New obs with id = %d recorded as started" % obsid }
     else:
         logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
         logger.info("In start_new_obs(), returned: %s" % result['status']);

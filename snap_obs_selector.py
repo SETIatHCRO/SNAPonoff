@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
 ##
-# ATAPOsitions class
-# Calculated the Az/Elof various objects in the sky, including ra/dec.
-# Note that the calculated positions are not exact, but within a degree.
+# snap_obs_selector.py class
+# Functionality to select best obs, frequency and ants to observe.
+# Removes a lot of complexity out of the main observing loop.
 # Author: Jon Richards, SETI Institute
-# July 16, 2018
+# Sep 04, 2018
 ##
 
 import sys
@@ -27,7 +27,7 @@ def pick_next_freq_ant_for_snap(snap, ant_list, freq_list):
     # returns something like:
     #   {'status': 'OK', 'source': ['casa'], 
     #    'ts': [datetime.datetime(2018, 9, 4, 23, 31, 7)], 
-    #    'ant': ['1a'], 'obsid': [725L], 'snap': ['snap1'], 
+    #    'ant': ['2b'], 'obsid': [725L], 'snap': ['snap1'], 
     #    'freq': [1000.0], 'id': [1L]}
     # or if there is no result:
     #   {'status': 'NONE'}
@@ -52,6 +52,10 @@ def pick_next_freq_ant_for_snap(snap, ant_list, freq_list):
     except TypeError as e:
         return { "status" : "error", "details" : "last ant used %s is not in the ant list, default to first freq and ant" % prev_ant,\
                  "ant" : ant_list[0], "freq" : freq_list[0]}
+    except ValueError as e:
+        print "Prev ant %s is not in list, resetting index to 0"  % prev_ant
+        prev_ant_index  = (len(ant_list) - 1)
+        prev_freq_index = (len(freq_list) - 1);
 
     next_freq = freq_list[prev_freq_index]
     next_ant = ant_list[prev_ant_index]
@@ -76,6 +80,9 @@ def get_next(snap_list, source_list, ant_list, freq_list):
     # First, determine if there is a source up. Go through the source_list
     # in prder and get the first one that is up
     best_source_up = ata_positions.ATAPositions.getFirstInListThatIsUp(source_list)
+    print best_source_up
+    if(best_source_up == None):
+        return None
     if(best_source_up['status'] == 'next_up'):
         return { "status" : "none_up", "next_up" : best_source_up['source'], \
                     "minutes" : best_source_up['minutes'] }
@@ -100,20 +107,21 @@ def get_next(snap_list, source_list, ant_list, freq_list):
 
         selected_ants.append(next_info['ant'])
 
-    return { "source" : source, "ants" : selected_ants, "freq" : selected_freq }
+    return { "status" : "OK", "source" : source, "ants" : selected_ants, "freq" : selected_freq }
 
 
 if __name__== "__main__":
 
+    """
     snap_list = ['snap1', 'snap2']
     source_list = ['casa', 'moon', 'taua', 'vira']
     #ant_list = [['2a','2b','2e','3l','1f','5c','4l','4g'],['2j','2d','4k','1d','2f','5h','3j','3e']]
-    ant_list = [['1a','2b','2e','3l','1f','5c','4l','4g'],['2j','2d','4k','1d','2f','5h','3j','3e']]
     freq_list = [1000.0, 2000.0]
 
     print get_next(snap_list, source_list, ant_list, freq_list)
     for i,snap in enumerate(snap_list):
         print pick_next_freq_ant_for_snap(snap, ant_list[i], freq_list)
+    """
 
 
 
