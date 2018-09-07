@@ -108,14 +108,14 @@ def get_most_recent_onoff_obsid(snap):
         logger.info("In get_most_recent_obsid(), returned: %s" % result['status']);
         return result;
 
-def record_on_off_obs(snap, ant, source, freq):
+def record_on_off_obs(snap, ant, source, freq, onoff, rep):
 
     obsid = get_most_recent_obsid();
     if(obsid < 0):
         return { 'status' : 'Error: record_on_off_obs() returned invalid value' }
 
-    result = db_query ("INSERT into snap_onoff_obs VALUES (NULL, now(), '%s', %d, '%s', '%s', %.2f)" % \
-            (snap, obsid, ant, source, freq))
+    result = db_query ("INSERT into snap_onoff_obs VALUES (NULL, now(), '%s', %d, '%s', '%s', %.2f, '%s', %d)" % \
+            (snap, obsid, ant, source, freq, onoff, rep))
 
     if(result['status'] != "OK"):
         logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
@@ -140,10 +140,10 @@ def get_latest_onoff_obs(snap):
 
 if __name__== "__main__":
 
-    print get_most_recent_obsid()
-    print start_new_obs("1a,1b,2a", 1000.0, "casa", 0.0, 10.0)
-    print end_most_recent_obs()
-    print record_on_off_obs('snap1', '1a', 'casa', 1000.0)
-    print get_latest_onoff_obs('snap1')
-    print get_latest_onoff_obs('snap4')
+    #print get_most_recent_obsid()
+    #print start_new_obs("1a,1b,2a", 1000.0, "casa", 0.0, 10.0)
+    #print end_most_recent_obs()
+    print record_on_off_obs('snap1', '1a', 'casa', 1000.0, "on", 1)
+    #print get_latest_onoff_obs('snap1')
+    #print get_latest_onoff_obs('snap4')
 

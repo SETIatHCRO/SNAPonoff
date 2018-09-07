@@ -45,8 +45,8 @@ snaps = {
             "snap1" : ['2j','2d','4k','1d','2f','5h','3j','3e']
             #"snap2" : "one-ax,1bx,1gx,1hx,2kx,2mx,3dx,4jx,1ay,1by,1gy,1hy,2ky,2my,3dy,4jy"
         }
-defaultAntArg = snap_array_helpers.dict_values_to_string(snaps, True)
-defaultSNAPHostnames = snap_array_helpers.dict_keys_to_array(snaps, True)
+defaultAntArg = (str(snaps["snap0"]) + "," + str(snaps["snap1"])).replace(" ","").replace("'","")
+defaultSNAPHostnames = "snap0,snap1"
 hostnamesHelpString = "List of SNAP hostnames: %s,%s (no quotes necessary), or just one like %s" %  \
     (defaultSNAPHostnames[0], defaultSNAPHostnames[1], defaultSNAPHostnames[0])
 
@@ -163,8 +163,8 @@ try:
         print ant_groups
         print freq_list
         obs_params = snap_obs_selector.get_next(snap_list, pointings, ant_groups, freq_list)
+
         logger.info(obs_params)
-        print obs_params
         if(obs_params == None or obs_params['status'] == "none_up"):
             if(obs_params == None):
                 logger.info("Attempted to get next up, None was returned. Waiting and trying again...")
@@ -176,7 +176,7 @@ try:
                 secs_to_wait -= 1
             continue
         else:
-            logger.info(obs_params)
+            logger.info("get_next returned: %s" % obs_params)
 
         # Record in the database a new obsid
         # Only if the source changed or the frequency changed
@@ -211,8 +211,11 @@ try:
                 "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
                 source, 16, 2, ants_to_observe, 1000.0, obsid, 0.0, 10.0)
 
+        snap_obs_db.end_most_recent_obs()
+
 
 except KeyboardInterrupt:
+    snap_obs_db.end_most_recent_obs()
     exit()
 
 

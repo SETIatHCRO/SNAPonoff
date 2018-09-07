@@ -112,16 +112,14 @@ def get_next(snap_list, source_list, ant_list, freq_list):
 
 if __name__== "__main__":
 
-    """
     snap_list = ['snap1', 'snap2']
     source_list = ['casa', 'moon', 'taua', 'vira']
-    #ant_list = [['2a','2b','2e','3l','1f','5c','4l','4g'],['2j','2d','4k','1d','2f','5h','3j','3e']]
+    ant_list = [['2a','2b','2e','3l','1f','5c','4l','4g'],['2j','2d','4k','1d','2f','5h','3j','3e']]
     freq_list = [1000.0, 2000.0]
 
     print get_next(snap_list, source_list, ant_list, freq_list)
     for i,snap in enumerate(snap_list):
         print pick_next_freq_ant_for_snap(snap, ant_list[i], freq_list)
-    """
 
 
 

@@ -25,22 +25,22 @@ from subprocess import Popen, PIPE
 
 RECORDER_PATH = "/home/sonata/jr/SNAPonoff/snap_record.py"
 
-def do_onoff_obs_threaded(snap, fpga_file, on_or_off, num_captures, ant, source, reps, obsid, freq):
+def do_onoff_obs_threaded(snap, fpga_file, on_or_off, num_captures, ant, source, rep, obsid, freq):
 
     logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
-    logger.info("Starting %s %s obs for %s, freq: %.2f, %d reps, obsid: %d, source: %s, caps: %d, reps=%d" % \
-                (snap, on_or_off, ant, freq, reps, obsid, source, num_captures, reps))
+    logger.info("Starting %s %s obs for %s, freq: %.2f, %d rep, obsid: %d, source: %s, caps: %d, rep=%d" % \
+                (snap, on_or_off, ant, freq, rep, obsid, source, num_captures, rep))
     proc = Popen(["python", RECORDER_PATH,\
                  snap, fpga_file, "-n", \
                  "%d" % num_captures, "-a", ant, "-c", \
                  "%s_%s_%03d_ant_%s_%.2f_obsid%d" % \
-                 (source, on_or_off, reps, ant, freq, obsid)])
+                 (source, on_or_off, rep, ant, freq, obsid)])
 
     proc.wait()
-    logger.info("Fnished %s obs for %s, freq: %.2f, %d reps, obsid: %d, source: %s" % \
-                (on_or_off, ant, freq, reps, obsid, source))
+    logger.info("Fnished %s obs for %s, freq: %.2f, %d rep, obsid: %d, source: %s" % \
+                (on_or_off, ant, freq, rep, obsid, source))
 
-    logger.info(snap_obs_db.record_on_off_obs(snap, ant, source, freq))
+    logger.info(snap_obs_db.record_on_off_obs(snap, ant, source, freq, on_or_off, rep))
 
     # snaps and ants are csv strings
 def do_onoff_obs(snaps, fpga_file, source, num_captures, repetitions, ants, freq, obsid, az_offset, el_offset):
@@ -56,7 +56,7 @@ def do_onoff_obs(snaps, fpga_file, source, num_captures, repetitions, ants, freq
     snap_list = snap_array_helpers.string_to_array(snaps)
     ant_list = snap_array_helpers.string_to_array(ants)
 
-    for reps in range(repetitions):
+    for rep in range(repetitions):
 
         for on_or_off in ["on", "off"]:
 
@@ -78,7 +78,7 @@ def do_onoff_obs(snaps, fpga_file, source, num_captures, repetitions, ants, freq
                 t = Thread(target=do_onoff_obs_threaded, \
                         args=(snap, fpga_file, \
                                 on_or_off, num_captures, ant, source, \
-                                reps, obsid, freq))
+                                rep, obsid, freq))
                 t.start()
                 threads.append(t)
 
