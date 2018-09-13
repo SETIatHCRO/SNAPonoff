@@ -66,6 +66,7 @@ class ATAPositions:
                     moon_angle = ATAPositions.angular_distance('moon', s, d)
                 is_up = pos.isUp(s, d)
                 if(is_up == True and sun_angle >= MIN_MOON_SUN_DIST and moon_angle >= MIN_MOON_SUN_DIST):
+                    print s
                     info = pos.getAzEl(d, s)
                     return { 'status' : 'next_up', 'source' : s, 'az' : info['az'], \
                             'el' : info['el'], "minutes" : future_minutes }

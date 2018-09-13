@@ -105,22 +105,24 @@ offs = snap_array_helpers.string_to_numeric_array(args.off)
 az_offset = offs[0]
 el_offset = offs[1]
 logger.info("Off position: Az=%3.2f, El=%2.2f" % (offs[0], offs[1]))
+logger.info("Repetitions = %d" % args.repetitions)
 
 # Create the list of antenna, merging all antenna groups
 ants = snap_array_helpers.flatten(ant_groups)
 logger.info("Ant list: %s" % snap_array_helpers.array_to_string(ants))
 
-# For each SNAP. set the minicircuits attenuators to 0.0
+# For each SNAP. set the minicircuits attenuators to 12.0
 # To do this, get a list of the first antenna in each snap group, x and y pol
 ant_list_for_attenuators = []
 db_list = []
+default_atten_db = 12 # Suggested by jack
 for name, snap_antlist in snaps.items():
-    db_list.append(0.0)
+    db_list.append(default_atten_db)
     ant = snap_antlist[0];
     if(len(ant) == 2):
         ant_list_for_attenuators.append(ant + 'x')
         ant_list_for_attenuators.append(ant + 'y')
-        db_list.append(0.0)
+        db_list.append(default_atten_db)
     else:
         ant_list_for_attenuators.append(ant)
 ata_control.set_atten_thread(ant_list_for_attenuators, db_list, False)
@@ -132,6 +134,7 @@ ata_control.reserve_antennas(ants)
 # Set the PAMs
 logger.info("Setting antenna attenuators to 15dB")
 for ant in ants:
+   print "ANT, ANTS%s, %s" % (ant, str(ants))
     # with no pol, both x and y will be set. Faster
    ata_control.set_pam_atten(ant, "", 15)
 
@@ -182,13 +185,18 @@ try:
         # Only if the source changed or the frequency changed
         if(current_source != obs_params['source'] or current_freq != obs_params['freq']):
 
-            this_ant_string = str(obs_params['ants']).replace("'", "").replace("]","").replace("[","").replace(" ","")
+            this_ant_string = snap_array_helpers.array_to_string(obs_params['ants'])
+            full_ant_string = snap_array_helpers.array_to_string(ants)
             print this_ant_string
-            status = snap_obs_db.start_new_obs(this_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
+            #status = snap_obs_db.start_new_obs(this_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
+            status = snap_obs_db.start_new_obs(full_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
             obsid = -1
             if "obsid" in status:
                 obsid = status["obsid"]
                 current_freq = obs_params['freq']
+                # Set the freq and fcus tha ants
+                logger.info(ata_control.set_freq(current_freq, this_ant_string))
+
             else:
                 logger.info("ERROR: Tried to create and record in db, got error. Tring again after a 10 seconds wait...")
                 time.sleep(10)
@@ -196,6 +204,7 @@ try:
 
         # get the source name
         source = obs_params['source']
+        freq = obs_params['freq']
 
         # Create the ephemers files ahead of time for this source and on,off pointing
         if(current_source != source): 
@@ -209,7 +218,7 @@ try:
 
         snap_control.do_onoff_obs(args.hosts, \
                 "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
-                source, 16, 2, ants_to_observe, 1000.0, obsid, 0.0, 10.0)
+                source, 16, args.repetitions, ants_to_observe, freq, obsid, 0.0, 10.0)
 
         snap_obs_db.end_most_recent_obs()
 

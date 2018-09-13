@@ -20,7 +20,7 @@ import logging
 import ata_positions
 import snap_obs_db
 
-def pick_next_freq_ant_for_snap(snap, ant_list, freq_list):
+def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
 
     #which fequency should we use?
     #Get the frequency of the last antpol observed for this source
@@ -31,7 +31,7 @@ def pick_next_freq_ant_for_snap(snap, ant_list, freq_list):
     #    'freq': [1000.0], 'id': [1L]}
     # or if there is no result:
     #   {'status': 'NONE'}
-    onoff_obs = snap_obs_db.get_latest_onoff_obs(snap)
+    onoff_obs = snap_obs_db.get_latest_onoff_obs(snap, source)
     if(onoff_obs['status'] == "NONE"):
         return { "ant" : ant_list[0], "freq" : freq_list[0] }
 
@@ -99,7 +99,7 @@ def get_next(snap_list, source_list, ant_list, freq_list):
     for snap_index,snap in enumerate(snap_list): # enumerate() gives us the index
 
 
-        next_info = pick_next_freq_ant_for_snap(snap, ant_list[snap_index], freq_list)
+        next_info = pick_next_freq_ant_for_snap(snap, ant_list[snap_index], freq_list, source)
 
         # If this is the first snap, this determines the frequency to use
         if(snap_index == 0):
@@ -112,14 +112,15 @@ def get_next(snap_list, source_list, ant_list, freq_list):
 
 if __name__== "__main__":
 
-    snap_list = ['snap1', 'snap2']
-    source_list = ['casa', 'moon', 'taua', 'vira']
+    snap_list = ['snap0', 'snap1']
+    source_list = ['moon', 'taua', 'vira']
     ant_list = [['2a','2b','2e','3l','1f','5c','4l','4g'],['2j','2d','4k','1d','2f','5h','3j','3e']]
     freq_list = [1000.0, 2000.0]
 
+
     print get_next(snap_list, source_list, ant_list, freq_list)
-    for i,snap in enumerate(snap_list):
-        print pick_next_freq_ant_for_snap(snap, ant_list[i], freq_list)
+    #for i,snap in enumerate(snap_list):
+    #    print pick_next_freq_ant_for_snap(snap, ant_list[i], freq_list)
 
 
 

@@ -257,8 +257,18 @@ def point_ants(on_or_off, ant_list):
     result = cmd()
     return ast.literal_eval(result)
 
+def set_freq(freq, ants):
+
+    ssh = local["ssh"]
+    cmd = ssh[("obs@tumulus", "atasetskyfreq a %.2f" % freq)]
+    result = cmd()
+    cmd = ssh[("obs@tumulus", "atasetfocus %s %.2f" % (ants, freq))]
+    result = cmd()
+    return result
+
 if __name__== "__main__":
 
-    print create_ephems("casa", 10.0, 5.0)
-    print point_ants("on", "1a,1b")
-    print point_ants("off", "1a,1b")
+    print set_freq(2000.0, "2a,2b")
+    #print create_ephems("casa", 10.0, 5.0)
+    #print point_ants("on", "1a,1b")
+    #print point_ants("off", "1a,1b")
