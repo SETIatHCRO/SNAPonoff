@@ -71,8 +71,11 @@ def get_most_recent_obsid():
 def start_new_obs(antlist, freq, target, az_offset, el_offset):
 
     result = db_query("INSERT INTO observations set ts_start=now(), ants='%s', \
-                        freq=%.3f, target='%s', az_offset=%f, el_offset=%.2f" %
-                        (antlist, freq, target, az_offset, el_offset));
+                        freq=%.3f, target='%s', az_offset=%f, el_offset=%.2f" % \
+                        (antlist, freq, target, az_offset, el_offset))
+    print "INSERT INTO observations set ts_start=now(), ants='%s', \
+                        freq=%.3f, target='%s', az_offset=%f, el_offset=%.2f" % \
+                        (antlist, freq, target, az_offset, el_offset)
     if(result['status'] == "OK"):
         obsid = get_most_recent_obsid()
         return { "status" : "OK", "obsid" : obsid, \
@@ -128,9 +131,9 @@ def record_on_off_obs(snap, ant, source, freq, onoff, rep):
             (snap, ant, source, freq, obsid, this_id)}
     return db_query(query);
 
-def get_latest_onoff_obs(snap):
+def get_latest_onoff_obs(snap, source):
 
-    result = db_query ("select * from snap_onoff_obs where snap='%s' ORDER BY id DESC LIMIT 1" % snap)
+    result = db_query ("select * from snap_onoff_obs where snap='%s' and source='%s' ORDER BY id DESC LIMIT 1" % (snap, source))
 
     if(result['status'] == "OK" and len(result['source']) == 0):
         return { "status" : 'NONE' }
@@ -143,7 +146,9 @@ if __name__== "__main__":
     #print get_most_recent_obsid()
     #print start_new_obs("1a,1b,2a", 1000.0, "casa", 0.0, 10.0)
     #print end_most_recent_obs()
-    print record_on_off_obs('snap1', '1a', 'casa', 1000.0, "on", 1)
-    #print get_latest_onoff_obs('snap1')
-    #print get_latest_onoff_obs('snap4')
+    #print record_on_off_obs('snap1', '1a', 'casa', 1000.0, "on", 1)
+    print get_latest_onoff_obs('snap0', 'casa')
+    print get_latest_onoff_obs('snap0', 'taua')
+    print get_latest_onoff_obs('snap1', 'casa')
+    print get_latest_onoff_obs('snap1', 'taua')
 
