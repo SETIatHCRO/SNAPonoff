@@ -23,20 +23,31 @@ import logging
 from threading import Thread
 from subprocess import Popen, PIPE
 
-RECORDER_PATH = "/home/sonata/jr/SNAPonoff/snap_record.py"
+RECORDER_PATH = "/home/sonata/jr/SNAPonoff2/snap_record.py"
 
 def do_onoff_obs_threaded(snap, fpga_file, on_or_off, num_captures, ant, source, rep, obsid, freq):
 
     logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
     logger.info("Starting %s %s obs for %s, freq: %.2f, %d rep, obsid: %d, source: %s, caps: %d, rep=%d" % \
                 (snap, on_or_off, ant, freq, rep, obsid, source, num_captures, rep))
-    proc = Popen(["python", RECORDER_PATH,\
-                 snap, fpga_file, "-n", \
-                 "%d" % num_captures, "-a", ant, "-c", \
-                 "%s_%s_%03d_ant_%s_%.2f_obsid%d" % \
-                 (source, on_or_off, rep, ant, freq, obsid)])
+    if(on_or_off == "on" and rep == 0):
+        proc = Popen(["python", RECORDER_PATH,\
+                  snap, fpga_file, "-n", \
+                  "%d" % num_captures, "-a", ant, "-t", "12.0", \
+                  "-x", source, "-o", "%d"%int(obsid), \
+                  "-c", "%s_%s_%03d_ant_%s_%.2f_obsid%d" % \
+                  (source, on_or_off, rep, ant, freq, obsid)])
 
-    proc.wait()
+        proc.wait()
+    else:
+        proc = Popen(["python", RECORDER_PATH,\
+                  snap, fpga_file, "-n", \
+                  "%d" % num_captures, "-a", ant, \
+                  "-x", source, "-o", "%d"%int(obsid), \
+                  "-c", "%s_%s_%03d_ant_%s_%.2f_obsid%d" % \
+                  (source, on_or_off, rep, ant, freq, obsid)])
+
+        proc.wait()
     logger.info("Fnished %s obs for %s, freq: %.2f, %d rep, obsid: %d, source: %s" % \
                 (on_or_off, ant, freq, rep, obsid, source))
 

@@ -9,6 +9,7 @@ switches and attenuators in the ATA test
 setup.
 """
 
+import sys
 from subprocess import Popen, PIPE
 import socket
 import ast
@@ -131,8 +132,6 @@ def set_atten(ant_list, db_list):
 
     ant_list_stripped = str(ant_list).replace("'","").replace("[","").replace("]","").replace(" ","")
     db_list_stripped = str(db_list).replace("'","").replace("[","").replace("]","").replace(" ","")
-    print ant_list_stripped
-    print db_list_stripped
     """
     Set attenuation of antenna or ant-pol `ant`
     to `db` dB.
@@ -141,18 +140,20 @@ def set_atten(ant_list, db_list):
     logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
     logger.info("setting rfswitch attenuators %s %s" % (db_list_stripped, ant_list_stripped))
 
-    if socket.gethostname() == ATTEN_HOST:
-        proc = Popen(["atten", "%s" % db_list_stripped, "%s" % ant_list_stripped],  stdout=PIPE, stderr=PIPE)
-    else:
-        proc = Popen(["ssh", "sonata@%s" % ATTEN_HOST, "sudo", "atten", "%s" % db_list_stripped, "%s" % ant_list_stripped],  stdout=PIPE, stderr=PIPE)
+#    if socket.gethostname() == ATTEN_HOST:
+    proc = Popen(["atten", "%s" % db_list_stripped, "%s" % ant_list_stripped],  stdout=PIPE, stderr=PIPE)
+#    else:
+#        proc = Popen(["ssh", "sonata@%s" % ATTEN_HOST, "sudo", "atten", "%s" % db_list_stripped, "%s" % ant_list_stripped],  stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate()
 
+    output = ""
     # Log the result
     for line in stdout.splitlines():
+        output += "%s\n" % line
         logger.info("Set atten for ant %s to %s db result: %s" % (ant_list_stripped, db_list_stripped, line))
     if stderr.startswith("OK"):
         logger.info("Set atten for ant %s to %s db result: SUCCESS" % (ant_list_stripped, db_list_stripped))
-        return
+        return output
     else:
         print "STDERR=%s" % (stderr)
         logger.error("Set attenuation 'sudo atten %s %s' failed!" % (db_list_stripped, ant_list_stripped))
@@ -268,7 +269,15 @@ def set_freq(freq, ants):
 
 if __name__== "__main__":
 
-    print set_freq(2000.0, "2a,2b")
+    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    logger.setLevel(logging.INFO)
+    sh = logging.StreamHandler(sys.stdout)
+    fmt = logging.Formatter('[%(asctime)-15s] %(message)s')
+    sh.setFormatter(fmt)
+    logger.addHandler(sh)
+
+    #print set_freq(2000.0, "2a,2b")
+    print set_atten("2ax,2ay", "10.0,10.0")
     #print create_ephems("casa", 10.0, 5.0)
     #print point_ants("on", "1a,1b")
     #print point_ants("off", "1a,1b")

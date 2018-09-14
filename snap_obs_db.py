@@ -139,6 +139,29 @@ def get_latest_onoff_obs(snap, source):
         return { "status" : 'NONE' }
     return result
 
+def record_atten(antpol, obsid, source, freq, db):
+
+    result = db_query ("INSERT into snap_onoff_atten VALUES (NULL, now(), '%s', '%s', '%s', '%.2f', '%.2f')" % \
+            (antpol, obsid, source, freq, db))
+
+    if(result['status'] != "OK"):
+        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger.info("In record_atten(), returned: %s" % result['status']);
+        return result;
+
+    return { "status" : "OK" }
+
+def get_atten_db(antpol, source, freq):
+
+    result = db_query("select db from snap_onoff_atten where ant='%s' and source='%s' and freq=%.2f DESC LIMIT 1" % \
+            (antpol, source, freq))
+    if(result['status'] == "OK"):
+        return float(result['db'][0])
+    else:
+        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger.info("In get_atten_db(), returned: %s" % result['status']);
+        return 0.0;
+
 
 
 if __name__== "__main__":
