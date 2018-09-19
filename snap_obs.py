@@ -36,6 +36,7 @@ import snap_onoffs_contants
 import snap_obs_selector
 import snap_obs_db
 import snap_control
+import snap_cli
 
 default_fpga_file = "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg"
 
@@ -51,12 +52,13 @@ hostnamesHelpString = "List of SNAP hostnames: %s,%s (no quotes necessary), or j
     (defaultSNAPHostnames[0], defaultSNAPHostnames[1], defaultSNAPHostnames[0])
 
 # Init the logger
-logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
-logger.setLevel(logging.INFO)
-sh = logging.StreamHandler(sys.stdout)
-fmt = logging.Formatter('[%(asctime)-15s] %(message)s')
-sh.setFormatter(fmt)
-logger.addHandler(sh)
+#logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+#logger.setLevel(logging.INFO)
+#sh = logging.StreamHandler(sys.stdout)
+#fmt = logging.Formatter('[%(asctime)-15s] %(message)s')
+#sh.setFormatter(fmt)
+#logger.addHandler(sh)
+logger = ata_control.setup_logger()
 
 # Define the argumants
 parser = argparse.ArgumentParser(description='Run an observation with multiple antennas and pointings',
@@ -82,35 +84,46 @@ parser.add_argument('-f', dest='freqs', type=str, default=None,
 
 args = parser.parse_args()
 
-print ""
-print "##################################"
-print "%s started!" % (str(__file__))
-print "##################################"
-print ""
+logger.info( "")
+logger.info( "##################################")
+logger.info( "%s started!" % (str(__file__)))
+logger.info( "##################################")
+logger.info( "")
 
 logger.info("### Started %s" % str(__file__))
+email_string = "### Started %s\n" % str(__file__)
 logger.info("Parameters:")
+email_string += "Parameters:\n"
 
 ant_groups = snap_array_helpers.string_to_array(args.ants);
 logger.info("Ant groups are: %s, len=%d" % (str(ant_groups), len(ant_groups)))
+email_string += "Ant groups are: %s, len=%d\n" % (str(ant_groups), len(ant_groups))
 pointings = snap_array_helpers.string_to_array(args.pointings);
 logger.info("Sources are: %s" % str(pointings))
+email_string += "Sources are: %s\n" % str(pointings)
 freq_list = snap_array_helpers.string_to_numeric_array(args.freqs);
 logger.info("Frequency list is: %s" % str(freq_list))
+email_string += "Frequency list is: %s\n" % str(freq_list)
 snap_list = snap_array_helpers.string_to_array(args.hosts)
 logger.info("SNAP host list is: %s" % str(snap_list))
+email_string += "SNAP host list is: %s\n" % str(snap_list)
 full_ant_list_string = snap_array_helpers.array_to_string(ant_groups)
 logger.info("Full ant list is: %s" % full_ant_list_string )
+email_string += "Full ant list is: %s\n" % full_ant_list_string
 offs = snap_array_helpers.string_to_numeric_array(args.off)
 az_offset = offs[0]
 el_offset = offs[1]
 logger.info("Off position: Az=%3.2f, El=%2.2f" % (offs[0], offs[1]))
+email_string += "Off position: Az=%3.2f, El=%2.2f\n" % (offs[0], offs[1])
 logger.info("Repetitions = %d" % args.repetitions)
+email_string += "Repetitions = %d\n" % args.repetitions
 
 # Create the list of antenna, merging all antenna groups
 ants = snap_array_helpers.flatten(ant_groups)
 logger.info("Ant list: %s" % snap_array_helpers.array_to_string(ants))
+email_string += "Ant list: %s\n" % snap_array_helpers.array_to_string(ants)
 
+ata_control.send_email("SNAP Obs started", email_string)
 # For each SNAP. set the minicircuits attenuators to 12.0
 # To do this, get a list of the first antenna in each snap group, x and y pol
 ant_list_for_attenuators = []
@@ -134,7 +147,7 @@ ata_control.reserve_antennas(ants)
 # Set the PAMs
 logger.info("Setting antenna attenuators to 15dB")
 for ant in ants:
-   print "ANT, ANTS%s, %s" % (ant, str(ants))
+   logger.info("Setting PAM for ant %s to %d" % (ant, 15))
     # with no pol, both x and y will be set. Faster
    ata_control.set_pam_atten(ant, "", 15)
 
@@ -152,8 +165,24 @@ current_obsid = -1
 current_freq = 0.0
 obsid = -1
 
+snap_cli.set_state(snap_cli.PROGRAM_STATE_RUN)
+snap_cli.server_thread()
+
 try:
     while(1):
+
+        if(snap_cli.get_state() == snap_cli.PROGRAM_STATE_QUIT):
+            logger.info("QUIT")
+            break
+        elif(snap_cli.get_state() == snap_cli.PROGRAM_STATE_PAUSE):
+            logger.info("PAUSING")
+            while(snap_cli.get_state() == snap_cli.PROGRAM_STATE_PAUSE):
+                time.sleep(1)
+            if(snap_cli.get_state() == snap_cli.PROGRAM_STATE_QUIT):
+                logger.info("QUIT")
+                break
+            else:
+                logger.info("Back up and runnung")
 
         # Get the next source, freq and ants to observe.
         # get_next will return like:
@@ -173,7 +202,10 @@ try:
                 logger.info("Attempted to get next up, None was returned. Waiting and trying again...")
             else:
                 logger.info( "No sources up yet, next is %s in %d minutes" % (obs_params['next_up'], obs_params['minutes']))
-            secs_to_wait = 10
+            secs_to_wait = 60*60 # wait 1 hour max
+            if(secs_to_wait > obs_params['minutes']*60): 
+                secs_to_wait = obs_params['minutes']*60 + 70
+            ata_control.send_email("SNAP obs: no source up", "No sources up yet, next is %s in %d minutes" % (obs_params['next_up'], obs_params['minutes']))
             while(secs_to_wait > 0):
                 time.sleep(1)
                 secs_to_wait -= 1
@@ -190,12 +222,16 @@ try:
             print this_ant_string
             #status = snap_obs_db.start_new_obs(this_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
             status = snap_obs_db.start_new_obs(full_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
+            ata_control.set_output_dir()
+
             obsid = -1
             if "obsid" in status:
                 obsid = status["obsid"]
                 current_freq = obs_params['freq']
                 # Set the freq and fcus tha ants
                 logger.info(ata_control.set_freq(current_freq, this_ant_string))
+
+                ata_control.send_email("SNAP Obs status, new source/freq", "Source %s, freq %.2f" % (obs_params['source'], float(obs_params['freq'])))
 
             else:
                 logger.info("ERROR: Tried to create and record in db, got error. Tring again after a 10 seconds wait...")
@@ -216,6 +252,7 @@ try:
 
         print "ANTS_TO_OBSERVE=%s, snaps = %s" % (ants_to_observe, args.hosts)
 
+
         snap_control.do_onoff_obs(args.hosts, \
                 "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
                 source, 16, args.repetitions, ants_to_observe, freq, obsid, 0.0, 10.0)
@@ -225,8 +262,14 @@ try:
 
 except KeyboardInterrupt:
     snap_obs_db.end_most_recent_obs()
+    snap_cli.server_close()
     exit()
 
+logger.info("Releasing ants")
+ata_control.release_antennas(ants, True)
+logger.info("Closing cli server")
+snap_cli.server_close()
+logger.info("Shut down - done.")
 
 
 

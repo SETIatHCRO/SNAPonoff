@@ -104,6 +104,10 @@ class ATAPositions:
                 obj =  ephem.FixedBody()
                 obj._ra = 23.391 * math.pi/180.0 * 15.0
                 obj._dec = 58.808 * math.pi/180.0
+            elif(name.lower() == "cyga"):
+                obj =  ephem.FixedBody()
+                obj._ra = 19.991 * math.pi/180.0 * 15.0
+                obj._dec = 40.734 * math.pi/180.0
             elif(name.lower() == "taua"):
                 obj =  ephem.FixedBody()
                 obj._ra = 5.575 * math.pi/180.0 * 15.0

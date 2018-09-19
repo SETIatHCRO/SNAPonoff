@@ -9,6 +9,7 @@ switches and attenuators in the ATA test
 setup.
 """
 
+import os
 import sys
 from subprocess import Popen, PIPE
 import socket
@@ -18,6 +19,8 @@ from threading import Thread
 import snap_array_helpers
 import snap_onoffs_contants
 from plumbum import local
+import time
+import datetime
 
 RF_SWITCH_HOST = "nsg-work1"
 ATTEN_HOST = "nsg-work1"
@@ -94,7 +97,8 @@ def set_rf_switch(ant_list):
         logger.info("Set rfswitch for ants %s result: SUCCESS" % ant_list_stripped)
         return
     else:
-        raise RuntimeError("Set switch 'sudo rfswitch %d %d' failed!" % (sel, switch))
+        logger.info("Set switch 'rfswitch %s' failed!" % ant_list_stripped)
+        raise RuntimeError("Set switch 'rfswitch %s' failed!" % (ant_list_stripped))
 
 def rf_switch_thread(ant_list, wait):
 
@@ -156,8 +160,8 @@ def set_atten(ant_list, db_list):
         return output
     else:
         print "STDERR=%s" % (stderr)
-        logger.error("Set attenuation 'sudo atten %s %s' failed!" % (db_list_stripped, ant_list_stripped))
-        raise RuntimeError("ERROR")
+        logger.error("Set attenuation 'sudo atten %s %s' failed! Trying again" % (db_list_stripped, ant_list_stripped))
+        raise RuntimeError("ERROR: set_atten %s %s returned: %s" % (db_list_stripped, ant_list_stripped, stderr))
 
 def set_pam_atten(ant, pol, val):
     """
@@ -178,8 +182,11 @@ def get_pam_status(ant):
     """
     Get the PAM attenuation settings and power detector readings for antenna `ant`
     """
+    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    logger.info("getting pam attenuator %s" % ant )
     proc = Popen(["getdetpams", ant],  stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate()
+    logger.info("getting pam attenuator stdout: %s" % stdout)
     x = stdout.split(',')
     return {'ant':x[0], 'atten_xf':float(x[1]), 'atten_xb':float(x[2]), 'atten_yf':float(x[3]), 'atten_yb':float(x[4]), 'det_x':float(x[5]), 'det_y':float(x[6])}
 
@@ -267,8 +274,81 @@ def set_freq(freq, ants):
     result = cmd()
     return result
 
+def send_email(subject, message):
+
+    import smtplib
+    from email.mime.text import MIMEText
+
+    me = "jrseti@gmail.com"
+    you = "jrseti@gmail.com"
+
+    msg = MIMEText(message)
+
+    # me == the sender's email address
+    # you == the recipient's email address
+    msg['Subject'] = 'SNAP OBS: %s' % subject
+    msg['From'] = me
+    msg['To'] = you
+
+    # Send the message via our own SMTP server, but don't include the
+    # envelope header.
+    s = smtplib.SMTP('localhost')
+    s.sendmail(me, you, msg.as_string())
+    s.quit()
+
+DEFAULT_DATA_DIR = "~/data"
+output_dir = os.path.expanduser("%s" % DEFAULT_DATA_DIR)
+
+def set_output_dir():
+
+    global output_dir
+
+    # Determine the snap data output directory based on todays date
+    todays_date = datetime.datetime.today().strftime('%Y%m%d')
+    output_dir = os.path.expanduser("%s/%s" % (os.path.expanduser("%s" % DEFAULT_DATA_DIR), todays_date))
+    try:
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+    except OSError:
+        print ("Error: Creating directory %s" %  output_dir)
+        send_email("Error: Creating directory %s. exiting" % output_dir)
+        sys.exit(1);
+
+    handle = logging.FileHandler("%s/log.txt" % output_dir, 'a')
+    formatter = logging.Formatter('%(asctime)s - %(module)s.%(funcName)s() - %(message)s')
+    handle.setFormatter(formatter)
+
+    logger = logging.getLogger()
+    logger.handlers = [handle]
+
+
+def get_output_dir():
+
+    global output_dir
+    return output_dir
+
+#https://stackoverflow.com/questions/22934616/multi-line-logging-in-python
+class CustomFilter(logging.Filter):
+    def filter(self, record):
+        if hasattr(record, 'dict') and len(record.dct) > 0:
+            for k, v in record.dct.iteritems():
+                record.msg = record.msg + '\n\t' + k + ': ' + v
+        return super(CustomFilter, self).filter(record)
+
+def setup_logger():
+
+    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    logger.setLevel(logging.INFO)
+    logger.addFilter(CustomFilter())
+
+    set_output_dir()
+
+    return logger
+
+
 if __name__== "__main__":
 
+    send_email("Test subject", "Test message")
     logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
     logger.setLevel(logging.INFO)
     sh = logging.StreamHandler(sys.stdout)
@@ -277,7 +357,7 @@ if __name__== "__main__":
     logger.addHandler(sh)
 
     #print set_freq(2000.0, "2a,2b")
-    print set_atten("2ax,2ay", "10.0,10.0")
+    #print set_atten("2ax,2ay", "10.0,10.0")
     #print create_ephems("casa", 10.0, 5.0)
     #print point_ants("on", "1a,1b")
     #print point_ants("off", "1a,1b")

@@ -15,13 +15,19 @@ import ata_control
 import logging
 import snap_onoffs_contants
 import snap_obs_db
+import time
 
-logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
-logger.setLevel(logging.INFO)
-sh = logging.StreamHandler(sys.stdout)
-fmt = logging.Formatter('[%(asctime)-15s] %(message)s')
-sh.setFormatter(fmt)
-logger.addHandler(sh)
+logger = ata_control.setup_logger()
+ata_control.set_output_dir()
+
+logger.info("Recorder started")
+
+#logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+#logger.setLevel(logging.INFO)
+#sh = logging.StreamHandler(sys.stdout)
+#fmt = logging.Formatter('[%(asctime)-15s] %(message)s')
+#sh.setFormatter(fmt)
+#logger.addHandler(sh)
 
 parser = argparse.ArgumentParser(description='Plot ADC Histograms and Spectra',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -118,7 +124,16 @@ if args.target_rms is not None:
             #ata_control.set_atten_by_ant(args.ant + "y", attenq)
             atten_ants = "%s%s,%s%s" % (args.ant, "x", args.ant, "y")
             atten_db = "%2f,%.2f" % (atteni, attenq)
-            ata_control.set_atten(atten_ants, atten_db)
+
+            #Throw an error and return 1 if set_atten fails. I did have a time where
+            #the server "bserver1" needed to be rebooted, the USB port on one
+            #of the attenuators was not working, a reboot fixed it. - JR
+            try:
+                ata_control.set_atten(atten_ants, atten_db)
+            except Exception, err:
+                logger.info("Error in snap_record.py, exiting: %s" % err)
+                ata_control.send_email("atten problem", err)
+                sys.exit(1)
 
             # Store attenuation values used
             out['attenx'] = atteni
@@ -216,5 +231,7 @@ for i in range(args.ncaptures):
         out['auto1_of_count'] += [snap.read_int('power_vacc1_of_count')]
         out['fft_of1'] += [snap.read_int('fft_of')]
 
-loger.info( "%s: Dumping data to %s" % (args.ant, filename))
+logger.info( "%s: Dumping data to %s" % (args.ant, filename))
 pkl.dump(out, open(filename, 'w'))
+
+sys.exit(0)

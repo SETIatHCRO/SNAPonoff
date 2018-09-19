@@ -159,7 +159,7 @@ def get_atten_db(antpol, source, freq):
         return float(result['db'][0])
     else:
         logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
-        logger.info("In get_atten_db(), returned: %s" % result['status']);
+        logger.info("In get_atten_db(%s, %s, %s), returned: %s" % (antpol, source, str(freq), result['status']));
         return 0.0;
 
 
