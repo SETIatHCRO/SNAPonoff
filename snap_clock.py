@@ -1,4 +1,11 @@
 #!/usr/bin/python
+
+"""
+snap_clock.py
+This program will query the SNAP frequency generator for the 
+output frequency and amplitude.
+"""
+
 import os
 
 import telnetlib
@@ -27,11 +34,11 @@ def get_clock_settings(store_in_redis=False):
 
 def set_clock_freq(freq_mhz):
 
-    print 'To set the clock freq, "telnet %s %d" then "FREQ %f MHz"' % (_host, _port, float(freq_mhz))
+    print ('To set the clock freq, "telnet %s %d" then "FREQ %f MHz"' % (_host, _port, float(freq_mhz)))
 
 def set_ampr(ampr_db):
 
-    print 'To set rhe amplitude of the RF output, "telnet %s %d" then "AMPR %f"' % (_host, _port, float(ampr_db))
+    print ('To set rhe amplitude of the RF output, "telnet %s %d" then "AMPR %f"' % (_host, _port, float(ampr_db)))
 
 
 if __name__== "__main__":
@@ -41,6 +48,6 @@ if __name__== "__main__":
     set_clock_freq(1800)
     set_ampr(16.0)
 
-    print snap_redis.RedisManager.get_instance().get("snap_clock")
+    print (snap_redis.RedisManager.get_instance().get("snap_clock"))
 
 
