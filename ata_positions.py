@@ -33,25 +33,28 @@ class ATAPositions:
         self.observer.elev = ata_const.ATA_ELEV
 
     @staticmethod
-    def getFirstInListThatIsUp(sources):
+    def getFirstInListThatIsUp(sources, d=None):
+
+        if(d == None):
+            d=dt.datetime.now()
 
         pos = ATAPositions();
 
         for s in sources:
-            info = pos.getAzEl(dt.datetime.now(), s)
-            sun_angle = ATAPositions.angular_distance('sun', s)
+            info = pos.getAzEl(d, s)
+            sun_angle = ATAPositions.angular_distance('sun', s, d)
             if(s == 'moon'):
                 moon_angle = 90.0
             else:
-                moon_angle = ATAPositions.angular_distance('moon', s)
-            is_up = pos.isUp(s)
+                moon_angle = ATAPositions.angular_distance('moon', s, d)
+            is_up = pos.isUp(s, d)
             if(is_up == True and sun_angle >= MIN_MOON_SUN_DIST and moon_angle >= MIN_MOON_SUN_DIST):
-              info = pos.getAzEl(dt.datetime.now(), s)
+              info = pos.getAzEl(d, s)
               return { 'status' : 'up', 'source' : s, 'az' : info['az'], 'el' : info['el'] }
 
         # If we got this far, none are up. So get the next one to rise
         future_minutes = 1;
-        now_date = dt.datetime.now()
+        now_date = d
 
         while(future_minutes < 1440): #If more than 1 day, something is wrong
 
@@ -116,6 +119,11 @@ class ATAPositions:
                 obj =  ephem.FixedBody()
                 obj._ra = 12.514 * math.pi/180.0 * 15.0
                 obj._dec = 12.391 * math.pi/180.0
+            elif(name.lower() == "goes-16"):
+                obj =  ephem.FixedBody()
+                ra,dec = self.observer.radec_of(121.998 * math.pi/180.0, 23.598 * math.pi/180.0)
+                obj._ra =  ra
+                obj._dec = dec
             elif(name.lower() == "radec"):
                 obj =  ephem.FixedBody();
                 obj._ra = ra * math.pi/180.0 * 15.0
@@ -137,6 +145,9 @@ class ATAPositions:
 
     def isUp(self, name, d=None, ra=-99.0, dec=-99):
         
+        if(name == 'goes-16'):
+            return True
+
         if(d == None):
             d = dt.datetime.now()
 
@@ -147,7 +158,10 @@ class ATAPositions:
         return False
 
     @staticmethod
-    def angular_distance(source1, source2, d=dt.datetime.now()):
+    def angular_distance(source1, source2, d=None):
+
+        if(d == None):
+            d=dt.datetime.now()
 
         pos = ATAPositions();
 
@@ -191,6 +205,10 @@ if __name__== "__main__":
         print vira
         radec = pos.getAzEl(dt.datetime.now(), None, 12.514, 12.391)
         print radec
+        goes_16 = pos.getAzEl(dt.datetime.now(), "goes-16")
+        print goes_16
+        print ATAPositions.angular_distance('moon', 'goes-16')
+        print ATAPositions.angular_distance('sun', 'goes-16')
 
         obj = sun
         up = pos.isUp(obj['name'])
@@ -215,7 +233,7 @@ if __name__== "__main__":
         up = pos.isUp(None, None, radec['ra'], radec['dec'])
         print "%s el=%f, up=%s" % (obj['name'], obj['el'], up)
 
-        first_up = ATAPositions.getFirstInListThatIsUp(['moon', 'casa', 'taua', 'vira']);
+        first_up = ATAPositions.getFirstInListThatIsUp(['moon', 'casa', 'taua', 'vira', 'goes-16']);
         if(first_up == None):
             print "No sources are up and far enough from the sun/moon!"
         elif(first_up['status'] == 'next_up'):

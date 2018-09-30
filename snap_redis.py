@@ -15,17 +15,18 @@ class RedisManager:
     __instance = None
     __r = None
     @staticmethod
-    def get_instance():
+    def get_instance(setup_tunnel=True):
         """ Static access method. """
         if RedisManager.__instance == None:
-            RedisManager()
+            RedisManager(setup_tunnel)
         return RedisManager.__instance
-    def __init__(self):
+    def __init__(self, setup_tunnel=True):
         """ Virtually private constructor. """
         if RedisManager.__instance != None:
             raise Exception("This class is a singleton!")
         else:
-            self._setupTunnel()
+            if(setup_tunnel == True):
+                self._setupTunnel()
             RedisManager.__instance = self
             RedisManager.__r = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -80,25 +81,34 @@ class RedisManager:
         t = Thread(target=handle_pub_result_method, args=(p, )).start()
         return p
 
+    def set_and_pub(self, key, value, channel):
+
+        return self.set(key, value), self.pub(channel, value)
+
 if __name__== "__main__":
 
     def handle_pub_result(p):
         for item in p.listen(): 
-            print item
+            print (item)
 
-    print "redis test"
-    print RedisManager.get_instance().delete("test")
-    print RedisManager.get_instance().delete("test")
-    print RedisManager.get_instance().set("test", "3")
-    print RedisManager.get_instance().get("test")
+    print ("redis test")
+    print (RedisManager.get_instance(False).delete("test"))
+    print (RedisManager.get_instance(False).delete("test"))
+    print (RedisManager.get_instance(False).delete("test2"))
+    print (RedisManager.get_instance(False).set("test", "3"))
+    print (RedisManager.get_instance(False).get("test"))
+    print (RedisManager.get_instance().set("test2", { "key1" : "value1", "key2" : "value2"}))
+    print (RedisManager.get_instance().get("test2"))
     
-    channel_name_list = ["channel1", "channel2"]
+    channel_name_list = ["channel1", "channel2", "channel3"]
     p = RedisManager.get_instance().get_pubsub()
     for channel_name in channel_name_list:
         p.unsubscribe(channel_name)
     subscribed_channels = RedisManager.get_instance().pubsub(channel_name_list, handle_pub_result)
     time.sleep(1)
-    print RedisManager.get_instance().pub("channel1", "4")
+    RedisManager.get_instance().pub("channel1", "4")
+    RedisManager.get_instance().set_and_pub("test3", { "key1" : "value1", "key2" : "value2"}, "channel3")
+    print (RedisManager.get_instance().get("test3"))
 
     for channel_name in channel_name_list:
         subscribed_channels.unsubscribe(channel_name)

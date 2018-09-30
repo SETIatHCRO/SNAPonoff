@@ -16,6 +16,7 @@ import logging
 import snap_onoffs_contants
 import snap_obs_db
 import time
+from snap_redis import RedisManager
 
 logger = ata_control.setup_logger()
 ata_control.set_output_dir()
@@ -73,9 +74,10 @@ except:
     logger.info( "%s: !!!!!!   Failed   !!!!!!" % args.ant)
     logger.info( "%s: !!!!!!!!!!!!!!!!!!!!!!!!" % args.ant)
 
-if args.ant is not None:
-    ata_control.get_pam_status(args.ant)
-
+#Not needed
+#if args.ant is not None:
+#    ata_control.get_pam_status(args.ant)
+RedisManager.get_instance().set_and_pub('snap_state_%s'%args.host, { 'state' : 'snap_init', 'snap' : args.host  }, 'onoff_state')
 
 datadir = os.path.expanduser(args.path)
 
@@ -99,25 +101,52 @@ logger.info( "%s: Figuring out accumulation length" % args.ant)
 acc_len = float(snap.read_int('timebase_sync_period') / (4096 / 4))
 logger.info( "%s: Accumulation length is %f" % (args.ant, acc_len))
 
+
 logger.info( "%s: Estimating FPGA clock" % args.ant)
 fpga_clk = snap.estimate_fpga_clock()
 out['fpga_clk'] = fpga_clk
 logger.info( "%s: Clock estimate is %.1f" % (args.ant, fpga_clk))
 logger.info( "%s: args.srate = %.1f" % (args.ant, args.srate))
-assert np.abs((fpga_clk*4. / args.srate) - 1) < 0.01
+
+check_clock = np.abs((fpga_clk*4. / args.srate) - 1) < 0.01
+
+# If bad clock, try several more times
+num_check = 0
+max_check = 5
+while(check_clock == False and num_check < max_check):
+    num_check = num_check + 1
+    time.sleep(1)
+    logger.info( "%s: Estimating FPGA clock retry %d" % (args.ant, num_check))
+    fpga_clk = snap.estimate_fpga_clock()
+    out['fpga_clk'] = fpga_clk
+    logger.info( "%s: Clock estimate is %.1f, try %d" % (args.ant, fpga_clk, num_check))
+    logger.info( "%s: args.srate = %.1f" % (args.ant, args.srate))
+    check_clock = np.abs((fpga_clk*4. / args.srate) - 1) < 0.01
+
+#If still bad clock, send email and exit
+if(check_clock == False):
+    ata_control.send_email("Clock error", "%s: bad clock estimate %.1f"% (args.ant, fpga_clk))
+    sys.exit(1)
+
+#assert np.abs((fpga_clk*4. / args.srate) - 1) < 0.01
 
 mux_sel = {'auto':0, 'cross':1}
+
+result = { "type" : "recorder_atten" }
+first = True
+is_pam = False
 
 if args.target_rms is not None:
     logger.info("%s: Trying to tune power levels to RMS: %.2f" % (args.ant, args.target_rms))
 
     max_attempts = 5
     num_snaps = 5
-    atteni = snap_obs_db.get_atten_db("%sx"%args.ant, args.source, float(out["rfc"]))
-    attenq = snap_obs_db.get_atten_db("%sy"%args.ant, args.source, float(out["rfc"]))
+    #atteni = snap_obs_db.get_atten_db("%sx"%args.ant, args.source, float(out["rfc"]))
+    #attenq = snap_obs_db.get_atten_db("%sy"%args.ant, args.source, float(out["rfc"]))
+    atteni = 0.0
+    attenq = 0.0
     logger.info("%s: default x dB=%.2f, y dB=%.2f" % (args.ant, atteni, attenq))
-    #atteni = 0
-    #attenq = 0
+
     try:
         for attempt in range(max_attempts):
             #ata_control.set_atten_by_ant(args.ant + "x", atteni)
@@ -129,11 +158,23 @@ if args.target_rms is not None:
             #the server "bserver1" needed to be rebooted, the USB port on one
             #of the attenuators was not working, a reboot fixed it. - JR
             try:
-                ata_control.set_atten(atten_ants, atten_db)
+                answer = ata_control.set_atten(atten_ants, atten_db)
+                #if there is no attenuator, then attempt to adject the PAMs
+                if "no attenuator for" in answer:
+                      is_pam = True
+                      if(first == True):
+                        logger.info("%s: No attenuator connected, setting pams to %s" % (args.ant, atten_db))
+                        ata_control.set_pam_attens(args.ant, 0.0, 0.0)
+                        first = False
+                      else:
+                        ata_control.set_pam_attens(args.ant, atteni, attenq)
+
             except Exception, err:
-                logger.info("Error in snap_record.py, exiting: %s" % err)
-                ata_control.send_email("atten problem", err)
-                sys.exit(1)
+                logger.info("Error in snap_record.py, exiting: %s" % repr(err))
+                ata_control.send_email("atten problem", repr(err))
+                #sys.exit(1)
+                print ("ERROR ant %s set_pam_attens" % args.ant)
+                continue
 
             # Store attenuation values used
             out['attenx'] = atteni
@@ -147,16 +188,26 @@ if args.target_rms is not None:
             chani = np.array(chani)
             chanq = np.array(chanq)
 
-            logger.info("%sx: Channel I ADC mean/std-dev: %.2f / %.2f" % (args.ant, chani.mean(), chani.std()))
-            logger.info("%sy: Channel Q ADC mean/std-dev: %.2f / %.2f" % (args.ant, chanq.mean(), chanq.std()))
-        
             delta_atteni = 20*np.log10(chani.std() / args.target_rms)
             delta_attenq = 20*np.log10(chanq.std() / args.target_rms)
+        
+            logger.info("%sx: Channel I ADC mean/std-dev/deltai: %.2f / %.2f, delta=%.2f" % \
+                    (args.ant, chani.mean(), chani.std(), delta_atteni))
+            logger.info("%sy: Channel Q ADC mean/std-dev/deltaq: %.2f / %.2f, delta=%.2f" % \
+                    (args.ant, chanq.mean(), chanq.std(), delta_attenq))
         
             if (delta_atteni < 1) and (delta_attenq < 1):
                 logger.info( "%s: Tuning complete" % args.ant)
                 snap_obs_db.record_atten("%sx"%args.ant, args.obsid, args.source, float(out["rfc"]), atteni)
                 snap_obs_db.record_atten("%sy"%args.ant, args.obsid, args.source, float(out["rfc"]), attenq)
+                result['ant'] = args.ant
+                if(is_pam == True):
+                      result['pam_atten_x'] = atteni
+                      result['pam_atten_y'] = attenq
+                else:
+                      result['mini_atten_x'] = atteni
+                      result['mini_atten_y'] = attenq
+                result['freq'] = out['rfc']
                 break
             else:
                 # Attenuator has 0.25dB precision
@@ -166,14 +217,27 @@ if args.target_rms is not None:
                     atteni = 30
                 if attenq > 30:
                     attenq = 30
+                if atteni < 0:
+                    atteni = 0
+                if attenq < 0:
+                    attenq = 0
                 logger.info( "%s: New X-attenuation: %.3f" % (args.ant, atteni))
                 logger.info( "%s: New Y-attenuation: %.3f" % (args.ant, attenq))
-    except:
+                result['ant'] = args.ant
+                if(is_pam == True):
+                      result['pam_atten_x'] = atteni
+                      result['pam_atten_y'] = attenq
+                else:
+                      result['mini_atten_x'] = atteni
+                      result['mini_atten_y'] = attenq
+                result['freq'] = out['rfc']
+    except Exception, err:
         # For some reason the Attenuation setting routine failed.
         # Use -1 attenuation values to indicate this so that data files
         # can be flagged.
-        logger.info( "%s: Attenuator tuning failed!" % args.ant)
+        logger.info( "%s: Attenuator tuning failed! err=%s" % (args.ant, repr(err)))
         traceback.print_exc(file=sys.stdout)
+        sys.exit(-1)
         out['attenx'] = -1
         out['atteny'] = -1
 
@@ -214,6 +278,8 @@ out['auto1_of_count'] = []
 out['fft_of1'] = []
 
 for i in range(args.ncaptures):
+    RedisManager.get_instance(False).set_and_pub('snap_state_%s'%args.host, { 'state' : 'snap_record', 'snap' : args.host, 'capture_num' : i  }, 'onoff_state')
+
     for ant in ants:
         logger.info( "%s: Setting snapshot select to %s (%d)" % (args.ant, ant, mux_sel[ant]))
         snap.write_int('vacc_ss_sel', mux_sel[ant])
@@ -233,5 +299,10 @@ for i in range(args.ncaptures):
 
 logger.info( "%s: Dumping data to %s" % (args.ant, filename))
 pkl.dump(out, open(filename, 'w'))
+
+if(is_pam ==  True):
+    logger.info(result)
+
+RedisManager.get_instance().set_and_pub('snap_state_%s'%args.host, { 'state' : 'snap_idle', 'snap' : args.host }, 'onoff_state')
 
 sys.exit(0)

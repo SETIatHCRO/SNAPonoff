@@ -15,6 +15,7 @@ import snap_onoffs_contants
 import snap_array_helpers
 import snap_obs_db
 import ata_control
+from snap_redis import RedisManager
 import math
 import logging
 import MySQLdb
@@ -81,6 +82,13 @@ def do_onoff_obs(snaps, fpga_file, source, num_captures, repetitions, ants, freq
 
         for on_or_off in ["on", "off"]:
 
+            RedisManager.get_instance().set_and_pub('onoff_params', { 'ants' : ant_list, 'freq' : float(freq), 'source' : source, 'position' : on_or_off, 'rep' : rep }, 'onoff_params')
+
+            print "ONOFF PARAMS\n\n"
+            print { 'ants' : ant_list, 'freq' : float(freq), 'source' : source, 'position' : on_or_off, 'rep' : rep }
+
+            RedisManager.get_instance().set_and_pub('onoff_moving', { 'state' : 'moving' }, 'onoff_state')
+
             print "##########"
             print "%s - %s" % (on_or_off.upper(), ants)
             print "##########"
@@ -90,9 +98,12 @@ def do_onoff_obs(snaps, fpga_file, source, num_captures, repetitions, ants, freq
             # Position the ants
             logger.info("Move all ants %s target: %s" % (on_or_off.upper(), ata_control.point_ants(on_or_off, ants ))); 
 
+            RedisManager.get_instance().set_and_pub('onoff_moving', { 'state' : 'moving_finished' }, 'onoff_state')
+
             threads = []
 
             for idx, ant in enumerate(ant_list):
+
 
                 snap = snap_list[idx]
 

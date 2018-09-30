@@ -28,6 +28,7 @@ import sys
 #from ata_snap import ata_control
 from subprocess import Popen, PIPE
 import time
+import datetime as dt
 import argparse
 import logging
 import ata_control
@@ -37,19 +38,40 @@ import snap_obs_selector
 import snap_obs_db
 import snap_control
 import snap_cli
+from snap_redis import RedisManager
+
+# Python code to remove duplicate elements 
+def remove_dups(duplicate): 
+    final_list = [] 
+    for num in duplicate: 
+        if num not in final_list: 
+            final_list.append(num) 
+    return final_list 
+
+#Publish we are initializonf
+RedisManager.get_instance().set_and_pub('onoff_state', { 'state' : 'init' }, 'onoff_state')
+RedisManager.get_instance().set_and_pub('onoff_position', { 'position' : 'parked' }, 'onoff_position')
+RedisManager.get_instance().set_and_pub('onoff_params', { 'ants' : [], 'freq' : -1.0, 'source' : '' }, 'onoff_params')
 
 default_fpga_file = "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg"
 
-#SNAP ant connections. SNAP2 not working yet
+#SNAP ant connections. 5b removed for now, put into maint
+"""
+snaps = {
+            "snap0" : ['2a','2b','2e','3l','1f','5c','4l','4g','2a','2b','2e','3l','1f','5c','4l'],
+            "snap1" : ['2j','2d','4k','1d','2f','5h','3j','3e','2j','2d','4k','1d','2f','5h','3j'],
+            "snap2" : ['1a','1b','1g','1h','2k','2m','3d','4j','5e','2c','4e','2l','2h','5g','1a']
+        }
+"""
 snaps = {
             "snap0" : ['2a','2b','2e','3l','1f','5c','4l','4g'],
-            "snap1" : ['2j','2d','4k','1d','2f','5h','3j','3e']
-            #"snap2" : "one-ax,1bx,1gx,1hx,2kx,2mx,3dx,4jx,1ay,1by,1gy,1hy,2ky,2my,3dy,4jy"
+            "snap1" : ['2j','2d','4k','1d','2f','5h','3j','3e'],
+            "snap2" : ['1a','1b','1g','1h','2k','2m','3d','4j','5e','2c','4e','2l','2h','5g']
         }
-defaultAntArg = (str(snaps["snap0"]) + "," + str(snaps["snap1"])).replace(" ","").replace("'","")
-defaultSNAPHostnames = "snap0,snap1"
-hostnamesHelpString = "List of SNAP hostnames: %s,%s (no quotes necessary), or just one like %s" %  \
-    (defaultSNAPHostnames[0], defaultSNAPHostnames[1], defaultSNAPHostnames[0])
+defaultAntArg = (str(snaps["snap0"]) + "," + str(snaps["snap1"]) + "," + str(snaps["snap2"])).replace(" ","").replace("'","")
+defaultSNAPHostnames = "snap0,snap1,snap2"
+hostnamesHelpString = "List of SNAP hostnames: %s (no quotes necessary)" %  \
+    (defaultSNAPHostnames)
 
 # Init the logger
 #logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
@@ -108,6 +130,9 @@ snap_list = snap_array_helpers.string_to_array(args.hosts)
 logger.info("SNAP host list is: %s" % str(snap_list))
 email_string += "SNAP host list is: %s\n" % str(snap_list)
 full_ant_list_string = snap_array_helpers.array_to_string(ant_groups)
+full_ant_list = remove_dups(full_ant_list_string.split(","))
+full_ant_list_string = snap_array_helpers.array_to_string(full_ant_list)
+
 logger.info("Full ant list is: %s" % full_ant_list_string )
 email_string += "Full ant list is: %s\n" % full_ant_list_string
 offs = snap_array_helpers.string_to_numeric_array(args.off)
@@ -119,34 +144,26 @@ logger.info("Repetitions = %d" % args.repetitions)
 email_string += "Repetitions = %d\n" % args.repetitions
 
 # Create the list of antenna, merging all antenna groups
-ants = snap_array_helpers.flatten(ant_groups)
-logger.info("Ant list: %s" % snap_array_helpers.array_to_string(ants))
-email_string += "Ant list: %s\n" % snap_array_helpers.array_to_string(ants)
+#ants = snap_array_helpers.flatten(ant_groups)
+#ant_list_temp = remove_dups(ants)
+#ants = snap_array_helpers.array_to_string(ant_list_temp)
+logger.info("Ant list: %s" % snap_array_helpers.array_to_string(full_ant_list))
+email_string += "Ant list: %s\n" % snap_array_helpers.array_to_string(full_ant_list)
 
 ata_control.send_email("SNAP Obs started", email_string)
 # For each SNAP. set the minicircuits attenuators to 12.0
-# To do this, get a list of the first antenna in each snap group, x and y pol
-ant_list_for_attenuators = []
-db_list = []
+# To do this, get a list of the first antenna in each snap group
 default_atten_db = 12 # Suggested by jack
-for name, snap_antlist in snaps.items():
-    db_list.append(default_atten_db)
-    ant = snap_antlist[0];
-    if(len(ant) == 2):
-        ant_list_for_attenuators.append(ant + 'x')
-        ant_list_for_attenuators.append(ant + 'y')
-        db_list.append(default_atten_db)
-    else:
-        ant_list_for_attenuators.append(ant)
-ata_control.set_atten_thread(ant_list_for_attenuators, db_list, False)
+for a in ant_groups:
+    ata_control.set_atten_thread(["%sx"%a[0],"%sy"%a[0]], [default_atten_db, default_atten_db], False)
 
 # Reserve the antennas
 logger.info("Reserving antennas %s in bfa antgroup" % full_ant_list_string)
-ata_control.reserve_antennas(ants)
+ata_control.reserve_antennas(full_ant_list)
 
 # Set the PAMs
 logger.info("Setting antenna attenuators to 15dB")
-for ant in ants:
+for ant in full_ant_list:
    logger.info("Setting PAM for ant %s to %d" % (ant, 15))
     # with no pol, both x and y will be set. Faster
    ata_control.set_pam_atten(ant, "", 15)
@@ -155,7 +172,7 @@ for ant in ants:
 #ata_control.rf_switch_thread(ant_list_for_attenuators, True);
 
 #test the release
-#ata_control.release_antennas(ants, True)
+#ata_control.release_antennas(full_ant_list, True)
 
 #exit here in testing
 #sys.exit()
@@ -167,6 +184,8 @@ obsid = -1
 
 snap_cli.set_state(snap_cli.PROGRAM_STATE_RUN)
 snap_cli.server_thread()
+
+RedisManager.get_instance().set_and_pub('onoff_antlist', { 'ants' : snaps }, 'onoff_antlist')
 
 try:
     while(1):
@@ -194,7 +213,7 @@ try:
         print pointings
         print ant_groups
         print freq_list
-        obs_params = snap_obs_selector.get_next(snap_list, pointings, ant_groups, freq_list)
+        obs_params = snap_obs_selector.get_next(snap_list, pointings, ant_groups, freq_list, dt.datetime.now())
 
         logger.info(obs_params)
         if(obs_params == None or obs_params['status'] == "none_up"):
@@ -202,6 +221,8 @@ try:
                 logger.info("Attempted to get next up, None was returned. Waiting and trying again...")
             else:
                 logger.info( "No sources up yet, next is %s in %d minutes" % (obs_params['next_up'], obs_params['minutes']))
+                RedisManager.get_instance().set_and_pub('onoff_state', { 'state' : 'waiting_for_source_up', 'source' : obs_params['next_up'], 'minutes' : obs_params['minutes'] }, 'onoff_state')
+
             secs_to_wait = 60*60 # wait 1 hour max
             if(secs_to_wait > obs_params['minutes']*60): 
                 secs_to_wait = obs_params['minutes']*60 + 70
@@ -218,10 +239,10 @@ try:
         if(current_source != obs_params['source'] or current_freq != obs_params['freq']):
 
             this_ant_string = snap_array_helpers.array_to_string(obs_params['ants'])
-            full_ant_string = snap_array_helpers.array_to_string(ants)
+            full_ant_string = snap_array_helpers.array_to_string(full_ant_list)
             print this_ant_string
             #status = snap_obs_db.start_new_obs(this_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
-            status = snap_obs_db.start_new_obs(full_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
+            status = snap_obs_db.start_new_obs(full_ant_list_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
             ata_control.set_output_dir()
 
             obsid = -1
@@ -245,6 +266,7 @@ try:
         # Create the ephemers files ahead of time for this source and on,off pointing
         if(current_source != source): 
             logger.info("Create ephems: %s" % ata_control.create_ephems(source, offs[0], offs[1]));
+            RedisManager.get_instance().set_and_pub('onoff_moving', { 'state' : 'moving' }, 'onoff_state')
             logger.info("Move all ants on target: %s" % ata_control.point_ants("on", full_ant_list_string ));
             current_source = source
 
@@ -252,6 +274,8 @@ try:
 
         print "ANTS_TO_OBSERVE=%s, snaps = %s" % (ants_to_observe, args.hosts)
 
+        #RedisManager.get_instance().set_and_pub('onoff_params', { 'ants' : obs_params['ants'], 'freq' : float(freq), 'source' : source }, 'onoff_params')
+        RedisManager.get_instance().set_and_pub('onoff_state', { 'state' : 'observing' }, 'onoff_state')
 
         snap_control.do_onoff_obs(args.hosts, \
                 "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
@@ -263,13 +287,15 @@ try:
 except KeyboardInterrupt:
     snap_obs_db.end_most_recent_obs()
     snap_cli.server_close()
-    exit()
 
+RedisManager.get_instance().set_and_pub('onoff_state', { 'state' : 'idle' }, 'onoff_state')
+RedisManager.get_instance().set_and_pub('onoff_position', { 'position' : 'parked' }, 'onoff_position')
 logger.info("Releasing ants")
-ata_control.release_antennas(ants, True)
+ata_control.release_antennas(full_ant_list, True)
 logger.info("Closing cli server")
 snap_cli.server_close()
 logger.info("Shut down - done.")
 
+exit()
 
 

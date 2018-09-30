@@ -178,6 +178,18 @@ def set_pam_atten(ant, pol, val):
     # Log  returned result, but strip off the newline character
     logger.info(stdout.rstrip())
 
+def set_pam_attens(ant, valx, valy):
+    """
+    Set the attenuation of antenna `ant`, both pols, to valx and valy dB
+    """
+    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    logger.info("setting pam attenuator %s to %.1f,%.1f db" % (ant, valx, valy))
+    proc = Popen(["ssh", "obs@tumulus", "atasetpams", ant, "%f"%valx, "%f"%valy], stdout=PIPE)
+    stdout, stderr = proc.communicate()
+    proc.wait()
+    # Log  returned result, but strip off the newline character
+    logger.info(stdout.rstrip())
+
 def get_pam_status(ant):
     """
     Get the PAM attenuation settings and power detector readings for antenna `ant`
@@ -299,19 +311,22 @@ def send_email(subject, message):
 DEFAULT_DATA_DIR = "~/data"
 output_dir = os.path.expanduser("%s" % DEFAULT_DATA_DIR)
 
-def set_output_dir():
+def set_output_dir(dirname=None):
 
     global output_dir
 
     # Determine the snap data output directory based on todays date
     todays_date = datetime.datetime.today().strftime('%Y%m%d')
-    output_dir = os.path.expanduser("%s/%s" % (os.path.expanduser("%s" % DEFAULT_DATA_DIR), todays_date))
+    if(dirname != None):
+        output_dir = dirname
+    else:
+        output_dir = os.path.expanduser("%s/%s" % (os.path.expanduser("%s" % DEFAULT_DATA_DIR), todays_date))
     try:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
     except OSError:
         print ("Error: Creating directory %s" %  output_dir)
-        send_email("Error: Creating directory %s. exiting" % output_dir)
+        send_email("Error report", "Error: Creating directory %s. exiting" % output_dir)
         sys.exit(1);
 
     handle = logging.FileHandler("%s/log.txt" % output_dir, 'a')
@@ -335,29 +350,31 @@ class CustomFilter(logging.Filter):
                 record.msg = record.msg + '\n\t' + k + ': ' + v
         return super(CustomFilter, self).filter(record)
 
-def setup_logger():
+def setup_logger(dirname=None):
 
     logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
     logger.setLevel(logging.INFO)
     logger.addFilter(CustomFilter())
 
-    set_output_dir()
+    set_output_dir(dirname)
 
     return logger
 
 
 if __name__== "__main__":
 
-    send_email("Test subject", "Test message")
-    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
-    logger.setLevel(logging.INFO)
-    sh = logging.StreamHandler(sys.stdout)
-    fmt = logging.Formatter('[%(asctime)-15s] %(message)s')
-    sh.setFormatter(fmt)
-    logger.addHandler(sh)
+    #print get_pam_status("2a")
+
+    #send_email("Test subject", "Test message")
+    #logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    #logger.setLevel(logging.INFO)
+    #sh = logging.StreamHandler(sys.stdout)
+    #fmt = logging.Formatter('[%(asctime)-15s] %(message)s')
+    #sh.setFormatter(fmt)
+    #logger.addHandler(sh)
 
     #print set_freq(2000.0, "2a,2b")
-    #print set_atten("2ax,2ay", "10.0,10.0")
+    print set_atten("2jx,2jy", "10.0,10.0")
     #print create_ephems("casa", 10.0, 5.0)
     #print point_ants("on", "1a,1b")
     #print point_ants("off", "1a,1b")

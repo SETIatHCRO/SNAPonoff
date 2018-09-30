@@ -18,6 +18,7 @@ import snap_array_helpers
 import math
 import logging
 import ata_positions
+import ata_control
 import snap_obs_db
 
 def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
@@ -32,6 +33,7 @@ def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
     # or if there is no result:
     #   {'status': 'NONE'}
     onoff_obs = snap_obs_db.get_latest_onoff_obs(snap, source)
+    #print onoff_obs
     if(onoff_obs['status'] == "NONE"):
         return { "ant" : ant_list[0], "freq" : freq_list[0] }
 
@@ -75,11 +77,14 @@ def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
 
 
 # Get the next source and associated parameters to look at
-def get_next(snap_list, source_list, ant_list, freq_list):
+def get_next(snap_list, source_list, ant_list, freq_list, d=None):
+
+    if(d == None):
+        d=dt.datetime.now()
 
     # First, determine if there is a source up. Go through the source_list
     # in prder and get the first one that is up
-    best_source_up = ata_positions.ATAPositions.getFirstInListThatIsUp(source_list)
+    best_source_up = ata_positions.ATAPositions.getFirstInListThatIsUp(source_list, d)
     print best_source_up
     if(best_source_up == None):
         return None
@@ -101,8 +106,10 @@ def get_next(snap_list, source_list, ant_list, freq_list):
 
         next_info = pick_next_freq_ant_for_snap(snap, ant_list[snap_index], freq_list, source)
 
+        index_snap_biggest_antlist = -1
+
         # If this is the first snap, this determines the frequency to use
-        if(snap_index == 0):
+        if(snap_index == (len(snap_list)-1)):
             selected_freq = next_info['freq']
 
         selected_ants.append(next_info['ant'])
@@ -111,16 +118,62 @@ def get_next(snap_list, source_list, ant_list, freq_list):
 
 
 if __name__== "__main__":
+    #snap_obs_db.set_test(False)
 
-    snap_list = ['snap0', 'snap1']
-    source_list = ['moon', 'taua', 'vira']
-    ant_list = [['2a','2b','2e','3l','1f','5c','4l','4g'],['2j','2d','4k','1d','2f','5h','3j','3e']]
-    freq_list = [1000.0, 2000.0]
+    snaps = {   
+            "snap0" : ['2a','2b','2e','3l','1f','5c','4l','4g'],
+            "snap1" : ['2j','2d','4k','1d','2f','5h','3j','3e'],
+            "snap2" : ['1a','1b','1g','1h','2k','2m','3d','4j','5e','2c','4e','2l','2h','5g']
+            }
+
+    snap_list = ['snap0', 'snap1', 'snap2']
+    source_list = [ 'moon', 'taua', 'casa', 'cyga', 'goes-16']
+    ant_list = [snaps['snap0'], snaps['snap1'], snaps['snap2']]
+    freq_list = [1000.0, 2000.0, 3000.0]
 
 
-    print get_next(snap_list, source_list, ant_list, freq_list)
+    d = dt.datetime.now() + dt.timedelta(minutes=(0))
     #for i,snap in enumerate(snap_list):
     #    print pick_next_freq_ant_for_snap(snap, ant_list[i], freq_list)
+    current_source = ""
+    current_freq = ""
+    az_offset = 10.0
+    el_offset = 0.0
+
+    logger = ata_control.setup_logger("~/data/temp")
+    full_ant_list = snaps['snap0'][:]
+    full_ant_list.extend(snaps['snap1'])
+    full_ant_list.extend(snaps['snap2'])
+    full_ant_list_string = ",".join(full_ant_list)
+
+
+    obs_params = get_next(snap_list, source_list, ant_list, freq_list)
+    print obs_params
+    '''
+
+    if(current_source != obs_params['source'] or current_freq != obs_params['freq']):
+        status = snap_obs_db.start_new_obs(full_ant_list_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
+        print status
+        current_source = obs_params['source']
+        current_freq = obs_params['freq']
+
+    ants_to_observe = ",".join(obs_params['ants'])
+
+    print "ANTS_TO_OBSERVE=%s,%.1f,%s" % (ants_to_observe, float(current_freq), current_source)
+    print "snaps = \n\t%s\n\t%s\n\t%s" % (snaps['snap0'], snaps['snap1'], snaps['snap2'])
+
+    snap_obs_db.record_on_off_obs('snap0', obs_params['ants'][0], current_source, float(current_freq), "on", 0)
+    snap_obs_db.record_on_off_obs('snap1', obs_params['ants'][1], current_source, float(current_freq), "on", 0)
+    snap_obs_db.record_on_off_obs('snap2', obs_params['ants'][2], current_source, float(current_freq), "on", 0)
+
+
+    '''
+
+
+
+
+
+
 
 
 

@@ -25,6 +25,27 @@ MYSQL_USER = "sonata"
 MYSQL_HOST = "sonata1"
 MYSQL_DATABASE = "ants"
 
+snap_onoff_atten = "snap_onoff_atten"
+snap_onoff_obs = "snap_onoff_obs"
+observations = "observations"
+
+def set_test(clear=False):
+    global snap_onoff_atten
+    global snap_onoff_obs
+    global observations
+    snap_onoff_atten = "test_snap_onoff_atten"
+    snap_onoff_obs = "test_snap_onoff_obs"
+    observations = "test_observations"
+
+    if(clear == True):
+        db_query("delete from test_snap_onoff_atten")
+        db_query("delete from test_snap_onoff_obs")
+        db_query("delete from test_observations")
+        db_query("ALTER TABLE test_snap_onoff_atten AUTO_INCREMENT = 1")
+        db_query("ALTER TABLE test_snap_onoff_obs AUTO_INCREMENT = 1")
+        db_query("ALTER TABLE test_observations AUTO_INCREMENT = 1")
+
+
 def db_query(query):
 
     try:
@@ -60,7 +81,8 @@ def db_query(query):
 
 def get_most_recent_obsid():
 
-    result = db_query("select MAX(id) from observations");
+    global observations
+    result = db_query("select MAX(id) from %s" % observations);
     if(result['status'] == "OK"):
         return result['MAX(id)'][0]
     else:
@@ -70,12 +92,13 @@ def get_most_recent_obsid():
 
 def start_new_obs(antlist, freq, target, az_offset, el_offset):
 
-    result = db_query("INSERT INTO observations set ts_start=now(), ants='%s', \
+    global observations
+    result = db_query("INSERT INTO %s set ts_start=now(), ants='%s', \
                         freq=%.3f, target='%s', az_offset=%f, el_offset=%.2f" % \
-                        (antlist, freq, target, az_offset, el_offset))
-    print "INSERT INTO observations set ts_start=now(), ants='%s', \
+                        (observations,antlist, freq, target, az_offset, el_offset))
+    print "INSERT INTO %s set ts_start=now(), ants='%s', \
                         freq=%.3f, target='%s', az_offset=%f, el_offset=%.2f" % \
-                        (antlist, freq, target, az_offset, el_offset)
+                        (observations, antlist, freq, target, az_offset, el_offset)
     if(result['status'] == "OK"):
         obsid = get_most_recent_obsid()
         return { "status" : "OK", "obsid" : obsid, \
@@ -92,7 +115,8 @@ def end_most_recent_obs():
     if(obsid < 0):
         return { 'status' : 'Error: get_most_recent_obsid() returned invalid value' }
 
-    result = db_query("UPDATE observations set ts_stop=now() where id=%d" % obsid)
+    global observations
+    result = db_query("UPDATE %s set ts_stop=now() where id=%d" % (observations, obsid))
 
     if(result['status'] == "OK"):
         return { "status" : "OK", "details" : "New ob with id = %d recorded as ended" % obsid }
@@ -103,7 +127,8 @@ def end_most_recent_obs():
 
 def get_most_recent_onoff_obsid(snap):
 
-    result = db_query("select MAX(id) from snap_onoff_obs where snap='%s'" % snap);
+    global snap_onoff_obs
+    result = db_query("select MAX(id) from %s where snap='%s'" % (snap_onoff_obs, snap));
     if(result['status'] == "OK"):
         return result['MAX(id)'][0]
     else:
@@ -113,12 +138,14 @@ def get_most_recent_onoff_obsid(snap):
 
 def record_on_off_obs(snap, ant, source, freq, onoff, rep):
 
+    global snap_onoff_obs
+
     obsid = get_most_recent_obsid();
     if(obsid < 0):
         return { 'status' : 'Error: record_on_off_obs() returned invalid value' }
 
-    result = db_query ("INSERT into snap_onoff_obs VALUES (NULL, now(), '%s', %d, '%s', '%s', %.2f, '%s', %d)" % \
-            (snap, obsid, ant, source, freq, onoff, rep))
+    result = db_query ("INSERT into %s VALUES (NULL, now(), '%s', %d, '%s', '%s', %.2f, '%s', %d)" % \
+            (snap_onoff_obs, snap, obsid, ant, source, freq, onoff, rep))
 
     if(result['status'] != "OK"):
         logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
@@ -126,14 +153,14 @@ def record_on_off_obs(snap, ant, source, freq, onoff, rep):
         return result;
 
     this_id = get_most_recent_onoff_obsid(snap)
-
-    return { "status" : "OK", "details" : "Recorded in db new on_off for %s, %s, %s, %.2f, obsid=%d, snap_onoff_obs id=%d" %
-            (snap, ant, source, freq, obsid, this_id)}
+    return { "status" : "OK", "details" : "Recorded in db new on_off for %s, %s, %s, %.2f, obsid=%d, %s id=%d" %
+            (snap, ant, source, freq, obsid, snap_onoff_obs, this_id)}
     return db_query(query);
 
 def get_latest_onoff_obs(snap, source):
 
-    result = db_query ("select * from snap_onoff_obs where snap='%s' and source='%s' ORDER BY id DESC LIMIT 1" % (snap, source))
+    global snap_onoff_obs
+    result = db_query ("select * from %s where snap='%s' and source='%s' ORDER BY id DESC LIMIT 1" % (snap_onoff_obs, snap, source))
 
     if(result['status'] == "OK" and len(result['source']) == 0):
         return { "status" : 'NONE' }
@@ -141,8 +168,9 @@ def get_latest_onoff_obs(snap, source):
 
 def record_atten(antpol, obsid, source, freq, db):
 
-    result = db_query ("INSERT into snap_onoff_atten VALUES (NULL, now(), '%s', '%s', '%s', '%.2f', '%.2f')" % \
-            (antpol, obsid, source, freq, db))
+    global snap_onoff_atten
+    result = db_query ("INSERT into %s VALUES (NULL, now(), '%s', '%s', '%s', '%.2f', '%.2f')" % \
+            (snap_onoff_atten, antpol, obsid, source, freq, db))
 
     if(result['status'] != "OK"):
         logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
@@ -153,8 +181,9 @@ def record_atten(antpol, obsid, source, freq, db):
 
 def get_atten_db(antpol, source, freq):
 
-    result = db_query("select db from snap_onoff_atten where ant='%s' and source='%s' and freq=%.2f DESC LIMIT 1" % \
-            (antpol, source, freq))
+    global snap_onoff_atten
+    result = db_query("select db from %s where ant='%s' and source='%s' and freq=%.2f DESC LIMIT 1" % \
+            (snap_onoff_atten, antpol, source, freq))
     if(result['status'] == "OK"):
         return float(result['db'][0])
     else:
@@ -170,6 +199,7 @@ if __name__== "__main__":
     #print start_new_obs("1a,1b,2a", 1000.0, "casa", 0.0, 10.0)
     #print end_most_recent_obs()
     #print record_on_off_obs('snap1', '1a', 'casa', 1000.0, "on", 1)
+    #set_test()
     print get_latest_onoff_obs('snap0', 'casa')
     print get_latest_onoff_obs('snap0', 'taua')
     print get_latest_onoff_obs('snap1', 'casa')
