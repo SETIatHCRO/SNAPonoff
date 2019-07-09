@@ -56,6 +56,7 @@ RedisManager.get_instance().set_and_pub('onoff_params', { 'ants' : [], 'freq' : 
 default_fpga_file = "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg"
 
 #SNAP ant connections. 5b removed for now, put into maint
+#SNAP ant connections. 1f removed for now, put into maint
 """
 snaps = {
             "snap0" : ['2a','2b','2e','3l','1f','5c','4l','4g','2a','2b','2e','3l','1f','5c','4l'],
@@ -63,11 +64,70 @@ snaps = {
             "snap2" : ['1a','1b','1g','1h','2k','2m','3d','4j','5e','2c','4e','2l','2h','5g','1a']
         }
 """
+# Oct 5, snap1, y pols rfswitch started failing. Need to ignore the obs for these. Till 
+# USB reset at Tue Oct  9 04:44:02 UTC 2018 . Problem started at 2018-10-05 03:53:01
 snaps = {
-            "snap0" : ['2a','2b','2e','3l','1f','5c','4l','4g'],
+            "snap0" : ['2a','2b','2e','3l','5c','4l','4g'],
             "snap1" : ['2j','2d','4k','1d','2f','5h','3j','3e'],
             "snap2" : ['1a','1b','1g','1h','2k','2m','3d','4j','5e','2c','4e','2l','2h','5g']
         }
+# removed 2h,2m,3d for repair
+# 4e in in maint
+# Dec 22, 2018 - 1f added back in.
+# Dec 22, 2018 - 5g is having pointing problems. Removing from snap2.
+# Dec 22, 2018 - 5h is having pointing problems. Removing from snap1.
+# Jan 12, 2019 - 4k not positioning, removing from list, snap1
+# Jan 23, 2019 - 1g keeps going down and up. I put it in maint. Removing from snap2
+# Feb 10, 2019 - Added back in 1g 4k 5b 5g 5h
+snaps = {
+            "snap0" : ['2a','2b','2e','3l','5c','4l','4g','1f'],
+            "snap1" : ['2j','2d','1d','2f','3j','3e','4k','5h'],
+            "snap2" : ['1a','1b','1h','2k','4j','5e','2c','2l','1g','5g','5b']
+        }
+snaps = {
+            "snap0" : ['2a','2b'],
+            "snap1" : ['2j','3e'],
+            "snap2" : ['1a','4j']
+        }
+# New feeds minus 1k, plus '2d','1d','2f' to even out snap1
+# 5b still bad!
+snaps = {
+            "snap0" : ['2a','2b','2e','3l'],
+            "snap1" : ['2j','2d','1d','2f'],
+            "snap2" : ['1h','4j','1g']
+        }
+snaps = {
+            "snap0" : ['2a','2b','2e','3l','5c','4l','4g','1f'],
+            "snap1" : ['2j','2d','1d','2f','3j','3e','4k','5h'],
+            "snap2" : ['1a','1b','1h','2k','4j','5e','2c','2l','1g','5g']
+        }
+
+#Removed 4j
+# 5c removed,  will run atapointer on it independently. From snap0
+snaps = {
+            "snap0" : ['2a','2b','2e','3l','4l','4g','1f'],
+            "snap1" : ['2j','2d','1d','2f','3j','3e','4k','5h'],
+            "snap2" : ['1a','1b','1h','2k','5e','2c','2l','1g','5g','4j']
+        }
+#snaps = {
+#            "snap0" : ['2e'],
+#            "snap1" : ['2j'],
+#            "snap2" : ['4j']
+#        }
+
+#Nov 18, 2018 - By request of Jack and Andrew, this would be the best, but then decided to to switch
+# around all the pols
+#snaps = {
+#        snap0 : ['1b', '2b', '2k', '5e', '2c', '2l'],
+#        snap1 : ['1h', '1g', '4e', '1d', '2f', '5g'],
+#        snap2 : ['1a', '2a', '2d', '2j', '2e', '3l', '4g', '4j', '1f', '5c', '4k', '4l', '2f', '3e', '3j', '5h']
+#        }
+snaps = {
+            "snap0" : ['2a','2b'],
+            "snap1" : ['2j','3e'],
+            "snap2" : ['1a','4j']
+        }
+
 defaultAntArg = (str(snaps["snap0"]) + "," + str(snaps["snap1"]) + "," + str(snaps["snap2"])).replace(" ","").replace("'","")
 defaultSNAPHostnames = "snap0,snap1,snap2"
 hostnamesHelpString = "List of SNAP hostnames: %s (no quotes necessary)" %  \
@@ -142,6 +202,8 @@ logger.info("Off position: Az=%3.2f, El=%2.2f" % (offs[0], offs[1]))
 email_string += "Off position: Az=%3.2f, El=%2.2f\n" % (offs[0], offs[1])
 logger.info("Repetitions = %d" % args.repetitions)
 email_string += "Repetitions = %d\n" % args.repetitions
+logger.info("Captures = %d" % args.ncaptures)
+email_string += "Captures = %d\n" % args.ncaptures
 
 # Create the list of antenna, merging all antenna groups
 #ants = snap_array_helpers.flatten(ant_groups)
@@ -279,7 +341,7 @@ try:
 
         snap_control.do_onoff_obs(args.hosts, \
                 "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
-                source, 16, args.repetitions, ants_to_observe, freq, obsid, 0.0, 10.0)
+                source, args.ncaptures, args.repetitions, ants_to_observe, freq, obsid, 0.0, 10.0)
 
         snap_obs_db.end_most_recent_obs()
 

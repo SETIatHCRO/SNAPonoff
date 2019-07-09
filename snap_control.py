@@ -70,10 +70,14 @@ def do_onoff_obs(snaps, fpga_file, source, num_captures, repetitions, ants, freq
     # set the RF switches
     try:
         ata_control.rf_switch_thread(ants, True)
-    except Exception, err:
+    except RuntimeError, err:
         logger.info("Error in snap_control.py setting rfswitch, exiting: %s" % err)
         ata_control.send_email("RF switch problem", err)
         sys.exit(1)
+    #except Exception, err:
+    #    logger.info("Error in snap_control.py setting rfswitch, exiting: %s" % err)
+    #    ata_control.send_email("RF switch problem", err)
+    #    sys.exit(1)
 
     snap_list = snap_array_helpers.string_to_array(snaps)
     ant_list = snap_array_helpers.string_to_array(ants)

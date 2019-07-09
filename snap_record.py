@@ -168,13 +168,13 @@ if args.target_rms is not None:
                         first = False
                       else:
                         ata_control.set_pam_attens(args.ant, atteni, attenq)
-
-            except Exception, err:
+            except RuntimeError, err:
+                #except Exception, err:
                 logger.info("Error in snap_record.py, exiting: %s" % repr(err))
                 ata_control.send_email("atten problem", repr(err))
-                #sys.exit(1)
-                print ("ERROR ant %s set_pam_attens" % args.ant)
-                continue
+                sys.exit(1)
+                #print ("ERROR ant %s set_pam_attens" % args.ant)
+                #continue
 
             # Store attenuation values used
             out['attenx'] = atteni
@@ -285,7 +285,8 @@ for i in range(args.ncaptures):
         snap.write_int('vacc_ss_sel', mux_sel[ant])
         logger.info( "%s: Grabbing data (%d of %d)" % (args.ant, i+1, args.ncaptures))
         x,t = snap.snapshots.vacc_ss_ss.read_raw()
-        d = np.array(struct.unpack('>%dl' % (x['length']/4), x['data'])) / acc_len
+        #d = np.array(struct.unpack('>%dl' % (x['length']/4), x['data'])) / acc_len
+        d = np.array(struct.unpack('>%dL' % (x['length']/4), x['data'])) / acc_len
         frange = np.linspace(out['rfc'] - (args.srate - args.ifc), out['rfc'] - (args.srate - args.ifc) + args.srate/2., d.shape[0])
         out['frange'] = frange
         out['auto0'] += [d[0::2]]

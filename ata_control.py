@@ -216,7 +216,7 @@ def move_ant_group(ants, from_group, to_group):
             bfa = cols[1:]
     for ant in ants:
         if ant not in bfa:
-            print nonegroup
+            #print nonegroup
             print ants
             logger.error("Failed to move antenna %s from %s to %s" % (ant, from_group, to_group))
             raise RuntimeError("Failed to move antenna %s from %s to %s" % (ant, from_group, to_group))

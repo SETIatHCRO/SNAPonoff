@@ -43,11 +43,17 @@ def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
     prev_ant_index = -1
     prev_freq_index = -1
 
+    #print("PREV FREQ=%f" % prev_freq)
+
     try:
         prev_freq_index = freq_list.index(prev_freq)
     except TypeError as e:
         return { "status" : "error", "details" : "last freq used %.2f is not in the freq list, default to first freq and ant" % prev_freq, \
                  "ant" : ant_list[0], "freq" : freq_list[0] }
+    except ValueError as e:
+        print("In DB freq %f not found", prev_freq)
+    #    prev_freq_index = (len(freq_list) - 1);
+    #    pass
 
     try:
         prev_ant_index = ant_list.index(prev_ant)
@@ -60,17 +66,21 @@ def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
         prev_freq_index = (len(freq_list) - 1);
 
     next_freq = freq_list[prev_freq_index]
+    #print("F1=%f, %s" % (next_freq, str(freq_list)))
     next_ant = ant_list[prev_ant_index]
     if(prev_ant_index == (len(ant_list) - 1)): # past the end
         next_ant = ant_list[0]
         next_freq_index = prev_freq_index + 1
         if(next_freq_index >= len(freq_list)): # past the end
             next_freq = freq_list[0]
+            #print("F2=%f" % next_freq)
         else: 
             next_freq = freq_list[next_freq_index]
+            #print("F3=%f" % next_freq)
     else:
         next_ant = ant_list[prev_ant_index + 1]
         next_freq = freq_list[prev_freq_index]; # Stays the same
+        #print("F4=%f" % next_freq)
 
     return { "ant" : next_ant, "freq" : next_freq }
 
@@ -129,7 +139,7 @@ if __name__== "__main__":
     snap_list = ['snap0', 'snap1', 'snap2']
     source_list = [ 'moon', 'taua', 'casa', 'cyga', 'goes-16']
     ant_list = [snaps['snap0'], snaps['snap1'], snaps['snap2']]
-    freq_list = [1000.0, 2000.0, 3000.0]
+    freq_list = [1400.0, 2500.0, 3500.0]
 
 
     d = dt.datetime.now() + dt.timedelta(minutes=(0))

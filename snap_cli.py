@@ -52,6 +52,7 @@ def server_listen(port=SOCKET_PORT):
                 serversocket.close()
                 break
             if msg.startswith('quit'):
+                print("QUITTING")
                 program_state = PROGRAM_STATE_QUIT
                 logger.info("Setting program_state = PROGRAM_STATE_QUIT")
                 clientsocket.send("Setting program_state = PROGRAM_STATE_QUIT")
@@ -85,7 +86,7 @@ def server_close():
         logger.info("Closing server socket")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((socket.gethostname(), 13333))
-        sock.send("quit\n");
+        sock.send("kill\n");
         data = sock.recv(100);
         sock.close()
     except:
