@@ -21,7 +21,7 @@ from astropy import units as u
 from astropy.coordinates import Angle
 
 MIN_MOON_SUN_DIST = 45.0
-MIN_ELEV = 30.0
+MIN_ELEV = 23.0
 
 class ATAPositions:
 

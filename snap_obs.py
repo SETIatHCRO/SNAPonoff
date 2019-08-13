@@ -125,7 +125,7 @@ snaps = {
 snaps = {
             "snap0" : ['2a','2b'],
             "snap1" : ['2j','3e'],
-            "snap2" : ['1a','4j']
+            "snap2" : ['1c','2h']
         }
 
 defaultAntArg = (str(snaps["snap0"]) + "," + str(snaps["snap1"]) + "," + str(snaps["snap2"])).replace(" ","").replace("'","")

@@ -2,7 +2,6 @@
 
 import sys
 import os
-
 import time
 
 if len(sys.argv) != 8:
