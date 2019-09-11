@@ -1,0 +1,4 @@
+SNAPFPG=/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-07-07_1844.fpg
+snap_initialize.py snap0 $SNAPFPG -s
+snap_initialize.py snap1 $SNAPFPG -s
+snap_initialize.py snap2 $SNAPFPG -s
