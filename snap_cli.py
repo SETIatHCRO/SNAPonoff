@@ -25,7 +25,7 @@ def server_listen(port=SOCKET_PORT):
 
     global program_state
 
-    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    logger = logging.getLogger(__name__)
 
     logger.info("Opening socket and listening")
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -80,7 +80,7 @@ def server_listen(port=SOCKET_PORT):
 
 def server_close():
 
-    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    logger = logging.getLogger(__name__)
 
     try:
         logger.info("Closing server socket")
@@ -93,7 +93,7 @@ def server_close():
         pass
 
 def client_msg(msg, port=SOCKET_PORT):
-    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    logger = logging.getLogger(__name__)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((socket.gethostname(), port))
@@ -112,7 +112,7 @@ def server_thread(port=SOCKET_PORT):
 
 if __name__== "__main__":
 
-    logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+    logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
     sh = logging.StreamHandler(sys.stdout)
     fmt = logging.Formatter('[%(asctime)-15s] %(message)s')

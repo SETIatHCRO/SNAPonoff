@@ -12,10 +12,8 @@ import math
 import os
 import datetime as dt
 import snap_onoffs_contants
-import snap_array_helpers
+from ATATools import snap_array_helpers,ata_control
 import snap_obs_db
-import ata_control
-from snap_redis import RedisManager
 import math
 import logging
 import MySQLdb

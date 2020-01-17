@@ -10,11 +10,10 @@
 
 import sys
 import numpy as np, scipy.io
-from plumbum import local
+#from plumbum import local
 import math
 import os
 import datetime as dt
-import snap_onoffs_contants
 import snap_array_helpers
 import math
 import logging
@@ -129,7 +128,7 @@ def get_most_recent_obsid():
     if(result['status'] == "OK"):
         return result['MAX(id)'][0]
     else:
-        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger = logging.getLogger(__name__)
         logger.info("In get_most_recent_obsid(), returned: %s" % result['status']);
         return -1;
 
@@ -148,7 +147,7 @@ def start_new_obs(antlist, freq, target, az_offset, el_offset):
         return { "status" : "OK", "obsid" : obsid, \
                 "details" : "New obs with id = %d recorded as started" % obsid }
     else:
-        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger = logging.getLogger(__name__)
         logger.info("In start_new_obs(), returned: %s" % result['status']);
         return result;
     cmd = ""
@@ -165,7 +164,7 @@ def end_most_recent_obs():
     if(result['status'] == "OK"):
         return { "status" : "OK", "details" : "New ob with id = %d recorded as ended" % obsid }
     else:
-        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger = logging.getLogger(__name__)
         logger.info("In end_most_recent_obs(), returned: %s" % result['status']);
         return result;
 
@@ -176,7 +175,7 @@ def get_most_recent_onoff_obsid(snap):
     if(result['status'] == "OK"):
         return result['MAX(id)'][0]
     else:
-        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger = logging.getLogger(__name__)
         logger.info("In get_most_recent_obsid(), returned: %s" % result['status']);
         return result;
 
@@ -192,7 +191,7 @@ def record_on_off_obs(snap, ant, source, freq, onoff, rep):
             (snap_onoff_obs, snap, obsid, ant, source, freq, onoff, rep))
 
     if(result['status'] != "OK"):
-        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger = logging.getLogger(__name__)
         logger.info("In record_on_off_obs(), returned: %s" % result['status']);
         return result;
 
@@ -219,7 +218,7 @@ def record_atten(antpol, obsid, source, freq, db):
             (snap_onoff_atten, antpol, obsid, source, freq, db))
 
     if(result['status'] != "OK"):
-        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger = logging.getLogger(__name__)
         logger.info("In record_atten(), returned: %s" % result['status']);
         return result;
 
@@ -233,7 +232,7 @@ def get_atten_db(antpol, source, freq):
     if(result['status'] == "OK"):
         return float(result['db'][0])
     else:
-        logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)
+        logger = logging.getLogger(__name__)
         logger.info("In get_atten_db(%s, %s, %s), returned: %s" % (antpol, source, str(freq), result['status']));
         return 0.0;
 

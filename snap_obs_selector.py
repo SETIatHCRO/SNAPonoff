@@ -13,12 +13,9 @@ import numpy as np, scipy.io
 import math
 import os
 import datetime as dt
-import snap_onoffs_contants
-import snap_array_helpers
 import math
 import logging
-import ata_positions
-import ata_control
+from ATATools import ata_positions,ata_control,snap_array_helpers
 import snap_obs_db
 
 def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
