@@ -31,12 +31,9 @@ import time
 import datetime as dt
 import logging
 from optparse import OptionParser
-import snap_array_helpers
-import snap_obs_selector
-import snap_obs_db
 import snap_control
 #import snap_cli
-from  ATATools import ata_control,logger_defaults,snap_array_helpers,obs_db
+from  ATATools import ata_control,logger_defaults,snap_array_helpers
 import ATAComm 
 
 default_fpga_file = "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg"
@@ -68,7 +65,7 @@ def main():
     parser.add_option('-a', dest='ants', type=str, action="store", default=None,
                         help ='Comma separated array list of ATA antennas, eg: \"2j,2d,4k\"')
     parser.add_option('-p', dest='pointings', type=str, action="store", default=None,
-                        help ='Comma separated list of pointings, eg: \"casa,vira,moon\"')
+                        help ='Comma separated list of on off sources, eg: \"casa,vira,moon\"')
     parser.add_option('-o', dest='off', type=str, action="store", default=default_pointings,
                         help ='Specify the off az,el in degrees, eg: 10,0')
     parser.add_option('-f', dest='freqs', type=str, action="store", default=None,
@@ -126,19 +123,32 @@ def main():
     if options.pointings:
         pointings_str = options.pointings
 
+    offs = snap_array_helpers.string_to_numeric_array(options.off)
+    az_offset = offs[0]
+    el_offset = offs[1]
+
+    repetitions = options.repetitions
+    ncaptures = options.ncaptures
+    
+    #TODO: we may need to modify this to add a verbosity/send mail/slack flags
+    doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repetitions,ncaptures,obs_set_id,options.fpga_file)
+
+    exit()
+
+def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repetitions,ncaptures,obs_set_id,fpga_file):
+
+    logger = logger_defaults.getModuleLogger(__name__)
+
     ant_list = snap_array_helpers.string_to_array(ant_str);
     pointings = snap_array_helpers.string_to_array(pointings_str);
     freq_list = snap_array_helpers.string_to_numeric_array(freq_str);
     ant_list = remove_dups(ant_list)
     full_ant_str = snap_array_helpers.array_to_string(ant_list)
 
-    offs = snap_array_helpers.string_to_numeric_array(options.off)
-    az_offset = offs[0]
-    el_offset = offs[1]
 
     info_string = ("OnOff Started\nDataset ID {7}\n\nAnts: {0!s}\nFreq: {1!s}\n"
             "Pointings: {2!s}\nOff positions: Az={3:3.2f} El={4:3.2f}\n"
-            "Repetitions {5:d}\nCaptures {6:d}").format(full_ant_str, freq_str, pointings_str,az_offset,el_offset,options.repetitions,options.ncaptures,obs_set_id)
+            "Repetitions {5:d}\nCaptures {6:d}").format(full_ant_str, freq_str, pointings_str,az_offset,el_offset,repetitions,ncaptures,obs_set_id)
 
     logger.info(info_string)
     logger.warning("Communication disabled, edit code")
@@ -164,8 +174,6 @@ def main():
         ATAComm.sendMail("SNAP Obs exception",logstr)
         raise
 
-
-
     # For each SNAP. set the minicircuits attenuators to 12.0
     # To do this, get a list of the first antenna in each snap group
     try:
@@ -179,44 +187,39 @@ def main():
         ata_control.release_antennas(ant_list, True)
         raise
 
-
-    current_source = ""
-    current_obsid = -1
-    current_freq = 0.0
-    obsid = -1
-
+    current_source = None
+    new_antennas = True
     #snap_cli.set_state(snap_cli.PROGRAM_STATE_RUN)
     #snap_cli.server_thread()
 
     logger.info("starting observations")
-
+    
     try:
-        raise RuntimeError("test")
         while(1):
+            new_antennas = True
+            #gets a antenna dictionary and 
+            curr_ant_dict,curr_freq_list = onoff_db.get_obs_params(obs_set_id,pointings,ant_groups,freq_list)
+            
+            #if None, it meast that all was measured
+            if not curr_ant_dict:
+                break
 
-            #Getting rid of the client - there is no real need to pause the execution
-            #if(snap_cli.get_state() == snap_cli.PROGRAM_STATE_QUIT):
-            #    logger.info("QUIT")
-            #    break
-            #elif(snap_cli.get_state() == snap_cli.PROGRAM_STATE_PAUSE):
-            #    logger.info("PAUSING")
-            #    while(snap_cli.get_state() == snap_cli.PROGRAM_STATE_PAUSE):
-            #        time.sleep(1)
-            #    if(snap_cli.get_state() == snap_cli.PROGRAM_STATE_QUIT):
-            #        logger.info("QUIT")
-            #        break
-            #    else:
-            #        logger.info("Back up and runnung")
+            for curr_freq in curr_freq_list:
+                raise RuntimeError("test")
 
-            # Get the next source, freq and ants to observe.
-            # get_next will return like:
-            #   {'source': 'casa', 'freq': 1000.0, 'ants': ['2b', '2j']}
-            # or if not up:
-            #   { "status" : "none_up", "next_up" : "casa", "minutes" : 200 }
-            # or if there are none up, all are below the horizon, sun and moon angle: None
-            logger.info(pointings)
-            logger.info(ant_groups)
-            logger.info(freq_list)
+                current_source,was_changed = ata_positions.ATAPositions.getPreferedSourceUp(current_source,pointings)
+
+                #we either changed antennas or changed source.
+                #need to generate the ephemeris and autotune PAMs
+                if( was_changed or new_antennas):
+                    logger.info("need to (re)run autotune")
+                    curr_ant_string = snap_array_helpers.dict_values_to_comma_string(curr_ant_dict)
+                    ata_control.create_ephems(current_source, az_offset, el_offset);
+                    ata_control.point_ants("on", curr_ant_string );
+                    ata_control.autotune(curr_ant_string)
+                
+                
+
             obs_params = snap_obs_selector.get_next(pointings, ant_groups, freq_list, dt.datetime.now())
 
             logger.info(obs_params)
@@ -290,15 +293,14 @@ def main():
     
     except KeyboardInterrupt:
         logger.info("Keyboard interuption")
-        snap_obs_db.end_most_recent_obs()
+    except:
+        logger.exception("something went wrong")
+        raise
     finally: 
         logger.info("shutting down")
         ATAComm.sendMail("SNAP Obs End","Finishing measurements")
         ata_control.release_antennas(ant_list, True)
         #snap_cli.server_close()
-    
-    exit()
-
 
 if __name__== "__main__":
     main()

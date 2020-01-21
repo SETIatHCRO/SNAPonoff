@@ -13,7 +13,6 @@ import os
 import datetime as dt
 import snap_onoffs_contants
 from ATATools import snap_array_helpers,ata_control
-import snap_obs_db
 import math
 import logging
 import MySQLdb
