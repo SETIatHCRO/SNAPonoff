@@ -33,8 +33,9 @@ import logging
 from optparse import OptionParser
 import snap_control
 #import snap_cli
-from  ATATools import ata_control,logger_defaults,snap_array_helpers
+from  ATATools import ata_control,logger_defaults,snap_array_helpers,obs_db,ata_positions
 import ATAComm 
+import onoff_db
 
 default_fpga_file = "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg"
 default_captures = 16
@@ -74,6 +75,8 @@ def main():
                         help ="config file with measurement parameters")
     parser.add_option('-v', '--verbose', dest='verbose', action="store_true", default=False,
                         help ="More on-screen information")
+    parser.add_option('-m', '--mail', dest='mail', action="store", default=None,
+                        help ="The recipient e-mail address (if different from default)")
 
     (options,args) = parser.parse_args()
 
@@ -98,10 +101,12 @@ def main():
             ant_str = configParser.get('measurement', 'antennas')
             freq_str = configParser.get('measurement', 'freq')
             pointings_str = configParser.get('measurement', 'sources')
-
     except:
         logger.exception("config file exception")
         raise
+
+    if options.mail:
+        ATAComm.setRecipient(options.mail)
 
     if options.ants:
         ant_str = options.ants
@@ -202,12 +207,20 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
             
             #if None, it meast that all was measured
             if not curr_ant_dict:
+                logger.info("all seems to be measured")
                 break
 
             for curr_freq in curr_freq_list:
-                raise RuntimeError("test")
 
                 current_source,was_changed = ata_positions.ATAPositions.getPreferedSourceUp(current_source,pointings)
+
+                if not current_source:
+                    errormsg = 'no source is up ({}). terminating observation set {}'.format(','.join(pointings),obs_set_id)
+                    logger.error(errormsg)
+                    ATAComm.sendMail("SNAP Obs Error",errormsg)
+                    ATAComm.postSlackMsg(info_string)
+                    raise RuntimeError(errormsg)
+
 
                 #we either changed antennas or changed source.
                 #need to generate the ephemeris and autotune PAMs
@@ -218,8 +231,12 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
                     ata_control.point_ants("on", curr_ant_string );
                     ata_control.autotune(curr_ant_string)
                 
-                
+                new_antennas = False
 
+                import pdb
+                pdb.set_trace()
+
+                raise RuntimeError("test")
             obs_params = snap_obs_selector.get_next(pointings, ant_groups, freq_list, dt.datetime.now())
 
             logger.info(obs_params)

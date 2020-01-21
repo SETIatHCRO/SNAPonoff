@@ -9,48 +9,114 @@ Created Jan 2020
 @author: jkulpa
 """
 
-from ATATools import obs_db,logger_defaults
+from ATATools import obs_db,logger_defaults,snap_array_helpers
+import ATASQL
 
 
 def get_all_meas_dict(setid,antenna_list):
     
     logger= logger_defaults.getModuleLogger(__name__)
 
-    mydb = connect.connectObsDb()
+    mydb = ATASQL.connectObsDb()
     mycursor = mydb.cursor()
 
-    returndict = {}
 
     insertcmd_part = ("select observations.freq,observations.description,observations.id, "
             "obs_ants.ant,obs_ants.az,obs_ants.el "
             "from (observations inner join obs_ants on observations.id = obs_ants.id ) "
-            "where observations.status = 'OK' and  observations.setid = %s and obs_ants.ant in (%s)")
+            "where observations.status = 'OK' and  observations.setid = %s ")
+    cpart2 = (" and obs_ants.ant in (%s)")
     in_p=', '.join(map(lambda x: '%s', antenna_list))
 
-    insertcmd = insertcmd_part % in_p
+    insertcmd_part2 = cpart2 % in_p
+
+    insertcmd = insertcmd_part + insertcmd_part2
 
     exec_list = [setid] + antenna_list
 
-    myiterator = mycursor.execute(insertcmd,exec_list)
+    logger.info("getting previous measurements for id {} antennas {}".format(setid,",".join(antenna_list)))
+    mycursor.execute(insertcmd,exec_list)
+    myiterator = mycursor.fetchall()
 
-    import pdb
-    pdb.set_trace()
+    if not myiterator:
+        mycursor.close()
+        mydb.close()
+        return None
+    
+    logger.warning("TEST THIS!")
+    returndict = {}
+    for (freq,desc,obsid,ant,az,el) in myiterator:
+        if ant not in returndict:
+            cdict = {'freq':[],'decs':[],'obsid':[],'az':[],'el':[]}
+            returndict[ant] = cdict
+
+        returndict[ant]['freq'].append(freq)
+        returndict[ant]['desc'].append(desc)
+        returndict[ant]['obsid'].append(obsid)
+        returndict[ant]['az'].append(az)
+        returndict[ant]['el'].append(el)
+
+
+    mycursor.close()
+    mydb.close()
 
     return returndict
 
 
 def get_obs_params(setid,sources,ant_snap_dictionary,freq_list):
-    all_antennas_list = ant_snap_dictionary.values()
+
+    all_antennas_list = snap_array_helpers.dict_list_to_list(ant_snap_dictionary)
 
     meas_dictionary = get_all_meas_dict(setid,all_antennas_list)
 
-    import pdb
-    pdb.set_trace()
+    snapKeys = ant_snap_dictionary.keys()
+    outputDict = {}
+    if meas_dictionary:
+        import pdb
+        pdb.set_trace()
 
-    freq_set = set(freq_list)
+        #using sets because it automatically removes duplicates
+        #we are allowing to re-measure some frequencies on some 
+        #of the antennas. e.g. ant1a was measured on 1,2,3 GHz
+        #and ant1c on 1,2 GHz and they belong to different snaps,
+        #while order was 1,2,3,4 GHzwe would order to measure
+        #1a and 2c on 3 and 4 GHz, duplicating 3GHz for 1a
+        freq_set = set(freq_list)
+        todo_freq_set = set()
+        antennas_got = meas_dictionary.keys()
+        for sk in snapKeys:
+            clist = ant_snap_dictionary[sk]
+            #for each host, we are searching for first antenna that
+            #was not measured, or was measured but has still some
+            #not measured frequencies
+            for cant in clist:
+                if cant in antennas_got:
+                    #antenna was measured, testing freq list
+                    flist = meas_dictionary[cant]['freq']
+                    diffset = set(flist) - freq_set
+                    #we have some unmeasured freqencies for that antenna
+                    if diffset:
+                        outputDict[sk] = cant
+                        todo_freq_set.update(diffset)
+                        break
+                else:
+                    outputDict[sk] = cant
+                    todo_freq_set.update(freq_list)
+                    break 
 
-    antennas_got = meas_dictionary.keys()
 
+        outputFreqList = list(todo_freq_set)
+    else:
+        #there were no measurements for those antennas
+        #taking first antenna from each list and copying
+        #the frequency list
+        outputFreqList = freq_list
+        for sk in snapKeys:
+            clist = ant_snap_dictionary[sk]
+            outputDict[sk] = clist[0]
+        
+
+    return outputDict,outputFreqList
 
 
 
