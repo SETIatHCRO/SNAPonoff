@@ -35,8 +35,8 @@ import snap_array_helpers
 import snap_obs_selector
 import snap_obs_db
 import snap_control
-import snap_cli
-from  ATATools import ata_control,logger_defaults,snap_array_helpers
+#import snap_cli
+from  ATATools import ata_control,logger_defaults,snap_array_helpers,obs_db
 import ATAComm 
 
 default_fpga_file = "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg"
@@ -63,6 +63,8 @@ def main():
                         help ='Number of data captures (for each correlation product)')
     parser.add_option('-r', dest='repetitions', type=int, action="store", default=default_repetitions,
                         help ='Number of repetitions of on-off pairs')
+    parser.add_option('-i', dest='obs_set', type=long, action="store", default=None,
+                        help ='Observation set ID. If present it will continue previous observations')
     parser.add_option('-a', dest='ants', type=str, action="store", default=None,
                         help ='Comma separated array list of ATA antennas, eg: \"2j,2d,4k\"')
     parser.add_option('-p', dest='pointings', type=str, action="store", default=None,
@@ -107,6 +109,17 @@ def main():
     if options.ants:
         ant_str = options.ants
 
+    if options.obs_set: 
+        #todo: check if that ID exits
+        try: 
+            obs_set_id = options.obs_set
+            obs_db.getSetData(obs_set_id)
+        except:
+            logger.error("Data set id {} does not exist".format(obs_set_id))
+            raise 
+    else:
+        obs_set_id = obs_db.getNewObsSetID("OnOff observation")
+
     if options.freqs:
         freq_str = options.freqs
 
@@ -123,16 +136,17 @@ def main():
     az_offset = offs[0]
     el_offset = offs[1]
 
-    info_string = ("OnOff Started\n\nAnts: {0!s}\nFreq: {1!s}\n"
+    info_string = ("OnOff Started\nDataset ID {7}\n\nAnts: {0!s}\nFreq: {1!s}\n"
             "Pointings: {2!s}\nOff positions: Az={3:3.2f} El={4:3.2f}\n"
-            "Repetitions {5:d}\nCaptures {6:d}").format(full_ant_str, freq_str, pointings_str,az_offset,el_offset,options.repetitions,options.ncaptures)
+            "Repetitions {5:d}\nCaptures {6:d}").format(full_ant_str, freq_str, pointings_str,az_offset,el_offset,options.repetitions,options.ncaptures,obs_set_id)
 
     logger.info(info_string)
-    ATAComm.sendMail("SNAP Obs started",info_string)
+    logger.warning("Communication disabled, edit code")
+    #ATAComm.sendMail("SNAP Obs started",info_string)
+    #ATAComm.postSlackMsg(info_string)
 
     try:
         ant_groups = ata_control.get_snap_dictionary(ant_list)
-        snap_list = ant_groups.keys()
     except:
         logstr = "unable to match antennas with snaps"
         logger.exception(logstr)
@@ -171,8 +185,8 @@ def main():
     current_freq = 0.0
     obsid = -1
 
-    snap_cli.set_state(snap_cli.PROGRAM_STATE_RUN)
-    snap_cli.server_thread()
+    #snap_cli.set_state(snap_cli.PROGRAM_STATE_RUN)
+    #snap_cli.server_thread()
 
     logger.info("starting observations")
 
@@ -180,18 +194,19 @@ def main():
         raise RuntimeError("test")
         while(1):
 
-            if(snap_cli.get_state() == snap_cli.PROGRAM_STATE_QUIT):
-                logger.info("QUIT")
-                break
-            elif(snap_cli.get_state() == snap_cli.PROGRAM_STATE_PAUSE):
-                logger.info("PAUSING")
-                while(snap_cli.get_state() == snap_cli.PROGRAM_STATE_PAUSE):
-                    time.sleep(1)
-                if(snap_cli.get_state() == snap_cli.PROGRAM_STATE_QUIT):
-                    logger.info("QUIT")
-                    break
-                else:
-                    logger.info("Back up and runnung")
+            #Getting rid of the client - there is no real need to pause the execution
+            #if(snap_cli.get_state() == snap_cli.PROGRAM_STATE_QUIT):
+            #    logger.info("QUIT")
+            #    break
+            #elif(snap_cli.get_state() == snap_cli.PROGRAM_STATE_PAUSE):
+            #    logger.info("PAUSING")
+            #    while(snap_cli.get_state() == snap_cli.PROGRAM_STATE_PAUSE):
+            #        time.sleep(1)
+            #    if(snap_cli.get_state() == snap_cli.PROGRAM_STATE_QUIT):
+            #        logger.info("QUIT")
+            #        break
+            #    else:
+            #        logger.info("Back up and runnung")
 
             # Get the next source, freq and ants to observe.
             # get_next will return like:
@@ -202,7 +217,7 @@ def main():
             logger.info(pointings)
             logger.info(ant_groups)
             logger.info(freq_list)
-            obs_params = snap_obs_selector.get_next(snap_list, pointings, ant_groups, freq_list, dt.datetime.now())
+            obs_params = snap_obs_selector.get_next(pointings, ant_groups, freq_list, dt.datetime.now())
 
             logger.info(obs_params)
             if(obs_params == None or obs_params['status'] == "none_up"):
@@ -280,7 +295,7 @@ def main():
         logger.info("shutting down")
         ATAComm.sendMail("SNAP Obs End","Finishing measurements")
         ata_control.release_antennas(ant_list, True)
-        snap_cli.server_close()
+        #snap_cli.server_close()
     
     exit()
 

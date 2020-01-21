@@ -15,7 +15,7 @@ import os
 import datetime as dt
 import math
 import logging
-from ATATools import ata_positions,ata_control,snap_array_helpers
+from ATATools import ata_positions,ata_control,snap_array_helpers,logger_defaults
 import snap_obs_db
 
 def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
@@ -84,23 +84,27 @@ def pick_next_freq_ant_for_snap(snap, ant_list, freq_list, source):
 
 
 # Get the next source and associated parameters to look at
-def get_next(snap_list, source_list, ant_list, freq_list, d=None):
+def get_next(source_list, ant_groups, freq_list, d=None):
 
+    logger = logger_defaults.getModuleLogger(__name__)
+    
     if(d == None):
         d=dt.datetime.now()
 
     # First, determine if there is a source up. Go through the source_list
     # in prder and get the first one that is up
     best_source_up = ata_positions.ATAPositions.getFirstInListThatIsUp(source_list, d)
-    print best_source_up
+    logger.debug(best_source_up)
     if(best_source_up == None):
+        logger.warning("No source is up")
         return None
     if(best_source_up['status'] == 'next_up'):
+        logger.info("no source is up, next up in {0:f} minutes".format(best_source_up['minutes'] ))
         return { "status" : "none_up", "next_up" : best_source_up['source'], \
                     "minutes" : best_source_up['minutes'] }
 
     source = best_source_up['source'];
-    print "Best source = %s" % source
+    logger.info("Best source = %s" % source)
 
     result = {}
 
@@ -108,12 +112,11 @@ def get_next(snap_list, source_list, ant_list, freq_list, d=None):
     selected_freq = 0.0
     selected_ants = []
 
+    
     for snap_index,snap in enumerate(snap_list): # enumerate() gives us the index
 
 
         next_info = pick_next_freq_ant_for_snap(snap, ant_list[snap_index], freq_list, source)
-
-        index_snap_biggest_antlist = -1
 
         # If this is the first snap, this determines the frequency to use
         if(snap_index == (len(snap_list)-1)):
