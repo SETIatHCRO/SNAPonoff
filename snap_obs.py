@@ -36,8 +36,9 @@ import snap_control
 from  ATATools import ata_control,logger_defaults,snap_array_helpers,obs_db,ata_positions
 import ATAComm 
 import onoff_db
+from SNAPobs import snap_defaults
 
-default_fpga_file = "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg"
+default_fpga_file = snap_defaults.spectra_snap_file
 default_captures = 16
 default_repetitions = 3
 default_pointings = "0.0,10"
@@ -181,10 +182,12 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
 
     # For each SNAP. set the minicircuits attenuators to 12.0
     # To do this, get a list of the first antenna in each snap group
+    thread_list = []
     try:
         default_atten_db = 12 # Suggested by jack
         for a in ant_groups.keys():
-            ata_control.set_atten_thread(["%sx"%ant_groups[a][0],"%sy"%ant_groups[a][0]], [default_atten_db, default_atten_db], False)
+            t=ata_control.set_atten_thread(["%sx"%ant_groups[a][0],"%sy"%ant_groups[a][0]], [default_atten_db, default_atten_db], False)
+            thread_list.append(t)
     except:
         logstr = "unable to set attenuators"
         logger.exception(logstr)
@@ -192,6 +195,8 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
         ata_control.release_antennas(ant_list, True)
         raise
 
+    ata_control.wait_for_threads(thread_list)
+    
     current_source = None
     new_antennas = True
     #snap_cli.set_state(snap_cli.PROGRAM_STATE_RUN)
@@ -224,89 +229,31 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
 
                 #we either changed antennas or changed source.
                 #need to generate the ephemeris and autotune PAMs
+                if was_changed:
+                    #if we only switched the antennas, we don't need to regenerate
+                    # the ephemeris
+                    ata_control.create_ephems(current_source, az_offset, el_offset);
+
                 if( was_changed or new_antennas):
                     logger.info("need to (re)run autotune")
                     curr_ant_string = snap_array_helpers.dict_values_to_comma_string(curr_ant_dict)
-                    ata_control.create_ephems(current_source, az_offset, el_offset);
                     ata_control.point_ants("on", curr_ant_string );
                     ata_control.autotune(curr_ant_string)
                 
                 new_antennas = False
 
-                import pdb
-                pdb.set_trace()
+                ata_control.set_freq(curr_freq, curr_ant_string)
 
-                raise RuntimeError("test")
-            obs_params = snap_obs_selector.get_next(pointings, ant_groups, freq_list, dt.datetime.now())
-
-            logger.info(obs_params)
-            if(obs_params == None or obs_params['status'] == "none_up"):
-                if(obs_params == None):
-                    logger.info("Attempted to get next up, None was returned. Waiting and trying again...")
-                else:
-                    logger.info( "No sources up yet, next is %s in %d minutes" % (obs_params['next_up'], obs_params['minutes']))
-                    RedisManager.get_instance().set_and_pub('onoff_state', { 'state' : 'waiting_for_source_up', 'source' : obs_params['next_up'], 'minutes' : obs_params['minutes'] }, 'onoff_state')
+                snap_control.onoff_observations(curr_ant_dict,obs_set_id,curr_freq,fpga_file,current_source,repetitions,ncaptures,az_offset,el_offset)
+                #snap_control.do_onoff_obs(args.hosts, \
+                #    "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
+                #    source, args.ncaptures, args.repetitions, ants_to_observe, freq, obsid, 0.0, 10.0)
     
-                secs_to_wait = 60*60 # wait 1 hour max
-                if(secs_to_wait > obs_params['minutes']*60): 
-                    secs_to_wait = obs_params['minutes']*60 + 70
-                ata_control.send_email("SNAP obs: no source up", "No sources up yet, next is %s in %d minutes" % (obs_params['next_up'], obs_params['minutes']))
-                while(secs_to_wait > 0):
-                    time.sleep(1)
-                    secs_to_wait -= 1
-                continue
-            else:
-                logger.info("get_next returned: %s" % obs_params)
-    
-            # Record in the database a new obsid
-            # Only if the source changed or the frequency changed
-            if(current_source != obs_params['source'] or current_freq != obs_params['freq']):
-    
-                this_ant_string = snap_array_helpers.array_to_string(obs_params['ants'])
-                full_ant_string = snap_array_helpers.array_to_string(full_ant_list)
-                print this_ant_string
-                #status = snap_obs_db.start_new_obs(this_ant_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
-                status = snap_obs_db.start_new_obs(full_ant_list_string, obs_params['freq'], obs_params['source'], az_offset, el_offset)
-                ata_control.set_output_dir()
-    
-                obsid = -1
-                if "obsid" in status:
-                    obsid = status["obsid"]
-                    current_freq = obs_params['freq']
-                    # Set the freq and fcus tha ants
-                    logger.info(ata_control.set_freq(current_freq, this_ant_string))
-    
-                    ata_control.send_email("SNAP Obs status, new source/freq", "Source %s, freq %.2f" % (obs_params['source'], float(obs_params['freq'])))
-    
-                else:
-                    logger.info("ERROR: Tried to create and record in db, got error. Tring again after a 10 seconds wait...")
-                    time.sleep(10)
-                    continue
-    
-            # get the source name
-            source = obs_params['source']
-            freq = obs_params['freq']
-    
-            # Create the ephemers files ahead of time for this source and on,off pointing
-            if(current_source != source): 
-                logger.info("Create ephems: %s" % ata_control.create_ephems(source, offs[0], offs[1]));
-                RedisManager.get_instance().set_and_pub('onoff_moving', { 'state' : 'moving' }, 'onoff_state')
-                logger.info("Move all ants on target: %s" % ata_control.point_ants("on", full_ant_list_string ));
-                current_source = source
-    
-            ants_to_observe = str(obs_params['ants']).replace("'", "").replace("[", "").replace("]", "").replace(" ","")
-    
-            print "ANTS_TO_OBSERVE=%s, snaps = %s" % (ants_to_observe, args.hosts)
-    
-            #RedisManager.get_instance().set_and_pub('onoff_params', { 'ants' : obs_params['ants'], 'freq' : float(freq), 'source' : source }, 'onoff_params')
-            RedisManager.get_instance().set_and_pub('onoff_state', { 'state' : 'observing' }, 'onoff_state')
-    
-            snap_control.do_onoff_obs(args.hosts, \
-                    "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
-                    source, args.ncaptures, args.repetitions, ants_to_observe, freq, obsid, 0.0, 10.0)
-    
-            snap_obs_db.end_most_recent_obs()
-    
+            #now, we believe we have measured all frequencies for curr_ant_dict, so we may
+            #remove the content of it from our original ant_groups. Note that this function
+            #alters the ant_groups!
+            onoff_db.remove_antennas_from_dict(ant_groups,curr_ant_dict);
+            
     
     except KeyboardInterrupt:
         logger.info("Keyboard interuption")

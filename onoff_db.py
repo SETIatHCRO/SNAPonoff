@@ -118,6 +118,13 @@ def get_obs_params(setid,sources,ant_snap_dictionary,freq_list):
 
     return outputDict,outputFreqList
 
-
+def remove_antennas_from_dict(ant_groups,curr_ant_dict):
+    
+    meas_keys = curr_ant_dict.keys()
+    for ck in meas_keys:
+        ant_groups[ck].remove(curr_ant_dict[ck])
+        #if there is no antenna on the list, pop the dictionary entry
+        if len(ant_groups[ck]) == 0:
+            ant_groups.pop(ck)
 
 
