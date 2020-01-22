@@ -82,11 +82,9 @@ def main():
     (options,args) = parser.parse_args()
 
     if(options.verbose):
-        logging.basicConfig(level=logging.INFO)
+        logger = logger_defaults.getProgramLogger("SNAP_ON_OFF_OBS",loglevel=logging.INFO)
     else:
-        logging.basicConfig(level=logging.WARNING)
-
-    logger = logger_defaults.getModuleLogger("SNAP_ON_OFF_OBS")
+        logger = logger_defaults.getProgramLogger("SNAP_ON_OFF_OBS",loglevel=logging.WARNING)
 
     if len(sys.argv) <= 1:
         logger.warning("no options provided")
@@ -182,12 +180,16 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
 
     # For each SNAP. set the minicircuits attenuators to 12.0
     # To do this, get a list of the first antenna in each snap group
-    thread_list = []
     try:
         default_atten_db = 12 # Suggested by jack
+        antpols_list_list = []
+        atten_list_list = []
+
         for a in ant_groups.keys():
-            t=ata_control.set_atten_thread(["%sx"%ant_groups[a][0],"%sy"%ant_groups[a][0]], [default_atten_db, default_atten_db], False)
-            thread_list.append(t)
+            antpols_list_list.append(["%sx"%ant_groups[a][0],"%sy"%ant_groups[a][0]])
+            atten_list_list.append([default_atten_db, default_atten_db])
+
+        ata_control.set_atten_thread(antpols_list_list,atten_list_list)
     except:
         logstr = "unable to set attenuators"
         logger.exception(logstr)
@@ -195,7 +197,6 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
         ata_control.release_antennas(ant_list, True)
         raise
 
-    ata_control.wait_for_threads(thread_list)
     
     current_source = None
     new_antennas = True
