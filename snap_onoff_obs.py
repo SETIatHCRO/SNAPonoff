@@ -61,13 +61,13 @@ def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,nca
                 rms = default_rms
             else:
                 rms = None
-            cobsid = snap_observations.observe_same(ant_dict,freq,source,ncaptures,
+            cobsid = snap_observations.record_same(ant_dict,freq,source,ncaptures,
                     "ON-OFF","ataonoff",desc,filefragment,rms,az_offset,el_offset,fpga_file,obs_set_id)
             obsids.append(cobsid)
     
     #if we got to this point without raising an exception, we are marking all measurements as OK
     logger.info("marking observations {} as OK".format(', '.join(obsids)))
-    obs_db.markObservationsOK(obsids)
+    obs_db.markRecordingssOK(obsids)
 
 def remove_dups(duplicate): 
     final_list = list(set(duplicate))
