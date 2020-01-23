@@ -23,17 +23,12 @@
         Sets the attenuation for and antenna (does pol pols) or just one
         pol.
 '''
-import os
+
 import sys
-#from ata_snap import ata_control
-from subprocess import Popen, PIPE
-import time
-import datetime as dt
 import logging
 from optparse import OptionParser
-import snap_control
-#import snap_cli
-from  ATATools import ata_control,logger_defaults,snap_array_helpers,obs_db,ata_positions
+
+from ATATools import ata_control,logger_defaults,snap_array_helpers,obs_db,ata_positions
 import ATAComm 
 import onoff_db
 from SNAPobs import snap_defaults,snap_observations
@@ -43,7 +38,6 @@ default_captures = 16
 default_repetitions = 3
 default_pointings = "0.0,10"
 default_rms = 12
-
 
 def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,ncaptures,az_offset,el_offset):
     """
