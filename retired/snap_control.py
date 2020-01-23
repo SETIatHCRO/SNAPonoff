@@ -11,39 +11,6 @@ from SNAPobs import snap_observations
 #RECORDER_PATH = "/home/sonata/jr/SNAPonoff2/snap_record.py"
 #DEFAULT_DATA_DIR = "~/data"
 
-defaultrms = 12
-
-def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,ncaptures,az_offset,el_offset):
-    """
-    do a series of On Off observations for given set ID
-    """
-    logger= logger_defaults.getModuleLogger(__name__)
-
-    if not obs_set_id:
-        logger.error("no set id for On Off observations")
-        raise RuntimeError("no set id")
-
-    obsids = []
-    for rep in range(repetitions):
-        for on_or_off in ["on", "off"]:
-            ants = snap_array_helpers.dict_values_to_comma_string(ant_dict)
-            logger.info("pointing antennas {} to position {}".format(ants,on_or_off))
-            ata_control.point_ants(on_or_off, ants)
-            desc = "{} repetition {}".format(on_or_off.upper(),rep)
-            filefragment = "{0!s}_{1:03d}".format(on_or_off,rep)
-            if(on_or_off == "on" and rep == 0):
-                rms = defaultrms
-            else:
-                rms = None
-            cobsid = snap_observations.observe_same(ant_dict,freq,source,ncaptures,
-                    "ON-OFF","ataonoff",desc,filefragment,rms,az_offset,el_offset,fpga_file,obs_set_id)
-            obsids.append(cobsid)
-    
-    #if we got to this point without raising an exception, we are marking all measurements as OK
-    logger.info("marking observations {} as OK".format(', '.join(obsids)))
-    obs_db.markObservationsOK(obsids)
-
-
 if __name__== "__main__":
 
     #logger = logging.getLogger(snap_onoffs_contants.LOGGING_NAME)

@@ -36,12 +36,44 @@ import snap_control
 from  ATATools import ata_control,logger_defaults,snap_array_helpers,obs_db,ata_positions
 import ATAComm 
 import onoff_db
-from SNAPobs import snap_defaults
+from SNAPobs import snap_defaults,snap_observations
 
 default_fpga_file = snap_defaults.spectra_snap_file
 default_captures = 16
 default_repetitions = 3
 default_pointings = "0.0,10"
+default_rms = 12
+
+
+def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,ncaptures,az_offset,el_offset):
+    """
+    do a series of On Off observations for given set ID
+    """
+    logger= logger_defaults.getModuleLogger(__name__)
+
+    if not obs_set_id:
+        logger.error("no set id for On Off observations")
+        raise RuntimeError("no set id")
+
+    obsids = []
+    for rep in range(repetitions):
+        for on_or_off in ["on", "off"]:
+            ants = snap_array_helpers.dict_values_to_comma_string(ant_dict)
+            logger.info("pointing antennas {} to position {}".format(ants,on_or_off))
+            ata_control.point_ants(on_or_off, ants)
+            desc = "{} repetition {}".format(on_or_off.upper(),rep)
+            filefragment = "{0!s}_{1:03d}".format(on_or_off,rep)
+            if(on_or_off == "on" and rep == 0):
+                rms = default_rms
+            else:
+                rms = None
+            cobsid = snap_observations.observe_same(ant_dict,freq,source,ncaptures,
+                    "ON-OFF","ataonoff",desc,filefragment,rms,az_offset,el_offset,fpga_file,obs_set_id)
+            obsids.append(cobsid)
+    
+    #if we got to this point without raising an exception, we are marking all measurements as OK
+    logger.info("marking observations {} as OK".format(', '.join(obsids)))
+    obs_db.markObservationsOK(obsids)
 
 def remove_dups(duplicate): 
     final_list = list(set(duplicate))
@@ -237,15 +269,17 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
 
                 if( was_changed or new_antennas):
                     logger.info("need to (re)run autotune")
-                    curr_ant_string = snap_array_helpers.dict_values_to_comma_string(curr_ant_dict)
+                    curr_ant_list = snap_array_helpers.dict_list_to_list(curr_ant_dict)
+                    curr_ant_string = snap_array_helpers.array_to_string(curr_ant_list)
+
                     ata_control.point_ants("on", curr_ant_string );
                     ata_control.autotune(curr_ant_string)
-                
-                new_antennas = False
+                    ata_control.rf_switch_thread(curr_ant_list)
+                    new_antennas = False
 
                 ata_control.set_freq(curr_freq, curr_ant_string)
 
-                snap_control.onoff_observations(curr_ant_dict,obs_set_id,curr_freq,fpga_file,current_source,repetitions,ncaptures,az_offset,el_offset)
+                onoff_observations(curr_ant_dict,obs_set_id,curr_freq,fpga_file,current_source,repetitions,ncaptures,az_offset,el_offset)
                 #snap_control.do_onoff_obs(args.hosts, \
                 #    "/home/sonata/dev/ata_snap/snap_adc5g_spec/outputs/snap_adc5g_spec_2018-06-23_1048.fpg", \
                 #    source, args.ncaptures, args.repetitions, ants_to_observe, freq, obsid, 0.0, 10.0)
