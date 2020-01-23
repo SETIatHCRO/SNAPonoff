@@ -263,7 +263,7 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
 
                 if( was_changed or new_antennas):
                     logger.info("need to (re)run autotune")
-                    curr_ant_list = snap_array_helpers.dict_list_to_list(curr_ant_dict)
+                    curr_ant_list = snap_array_helpers.dict_to_list(curr_ant_dict)
                     curr_ant_string = snap_array_helpers.array_to_string(curr_ant_list)
 
                     ata_control.point_ants("on", curr_ant_string );
