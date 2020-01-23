@@ -21,11 +21,11 @@ def get_all_meas_dict(setid,antenna_list):
     mycursor = mydb.cursor()
 
 
-    insertcmd_part = ("select observations.freq,observations.description,observations.id, "
-            "obs_ants.ant,obs_ants.az,obs_ants.el "
-            "from (observations inner join obs_ants on observations.id = obs_ants.id ) "
-            "where observations.status = 'OK' and  observations.setid = %s ")
-    cpart2 = (" and obs_ants.ant in (%s)")
+    insertcmd_part = ("select recordings.freq,recordings.description,recordings.id, "
+            "rec_ants.ant,rec_ants.az,rec_ants.el "
+            "from (recordings inner join rec_ants on recordings.id = rec_ants.id ) "
+            "where recordings.status = 'OK' and  observations.setid = %s ")
+    cpart2 = (" and rec_ants.ant in (%s)")
     in_p=', '.join(map(lambda x: '%s', antenna_list))
 
     insertcmd_part2 = cpart2 % in_p
