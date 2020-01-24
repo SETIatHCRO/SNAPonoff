@@ -37,7 +37,7 @@ default_fpga_file = snap_defaults.spectra_snap_file
 default_captures = 16
 default_repetitions = 3
 default_pointings = "0.0,10"
-default_rms = 12
+default_rms = snap_defaults.rms
 
 def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,ncaptures,az_offset,el_offset):
     """
@@ -58,11 +58,11 @@ def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,nca
             desc = "{} repetition {}".format(on_or_off.upper(),rep)
             filefragment = "{0!s}_{1:03d}".format(on_or_off,rep)
             if(on_or_off == "on" and rep == 0):
-                rms = default_rms
-            else:
-                rms = None
+                attendict = snap_observations.setRMS(ant_dict,fpga_file,default_rms)
             cobsid = snap_observations.record_same(ant_dict,freq,source,ncaptures,
-                    "ON-OFF","ataonoff",desc,filefragment,"SNAP",rms,az_offset,el_offset,fpga_file,obs_set_id)
+                    "ON-OFF","ataonoff",desc,filefragment,"SNAP",az_offset,el_offset,fpga_file,obs_set_id)
+
+            obs_db.updateAttenVals(cobsid,attendict)
             obsids.append(cobsid)
     
     #if we got to this point without raising an exception, we are marking all measurements as OK
