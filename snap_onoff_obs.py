@@ -62,7 +62,7 @@ def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,nca
             else:
                 rms = None
             cobsid = snap_observations.record_same(ant_dict,freq,source,ncaptures,
-                    "ON-OFF","ataonoff",desc,filefragment,rms,az_offset,el_offset,fpga_file,obs_set_id)
+                    "ON-OFF","ataonoff",desc,filefragment,"SNAP",rms,az_offset,el_offset,fpga_file,obs_set_id)
             obsids.append(cobsid)
     
     #if we got to this point without raising an exception, we are marking all measurements as OK
@@ -259,6 +259,7 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
                 if was_changed:
                     #if we only switched the antennas, we don't need to regenerate
                     # the ephemeris
+                    logger.info("source changed to {}".format(current_source))
                     ata_control.create_ephems(current_source, az_offset, el_offset);
 
                 if( was_changed or new_antennas):
@@ -266,7 +267,9 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
                     curr_ant_list = snap_array_helpers.dict_to_list(curr_ant_dict)
                     curr_ant_string = snap_array_helpers.array_to_string(curr_ant_list)
 
+                    logger.info("pointing the antennas")
                     ata_control.point_ants("on", curr_ant_string );
+                    logger.info("autotuning")
                     ata_control.autotune(curr_ant_string)
                     ata_control.rf_switch_thread(curr_ant_list)
                     new_antennas = False
@@ -292,8 +295,9 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
     finally: 
         logger.info("shutting down")
         ATAComm.sendMail("SNAP Obs End","Finishing measurements")
-        ata_control.release_antennas(ant_list, True)
-        #snap_cli.server_close()
+        #ata_control.release_antennas(ant_list, True)
+        ata_control.release_antennas(ant_list, False)
+        logger.warning("not parking the antennas!")
 
 if __name__== "__main__":
     main()

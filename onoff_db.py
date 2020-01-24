@@ -24,7 +24,7 @@ def get_all_meas_dict(setid,antenna_list):
     insertcmd_part = ("select recordings.freq,recordings.description,recordings.id, "
             "rec_ants.ant,rec_ants.az,rec_ants.el "
             "from (recordings inner join rec_ants on recordings.id = rec_ants.id ) "
-            "where recordings.status = 'OK' and  observations.setid = %s ")
+            "where recordings.status = 'OK' and  recordings.setid = %s ")
     cpart2 = (" and rec_ants.ant in (%s)")
     in_p=', '.join(map(lambda x: '%s', antenna_list))
 
