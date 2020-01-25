@@ -274,6 +274,7 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
                     ata_control.rf_switch_thread(curr_ant_list)
                     new_antennas = False
 
+                logger.info("changing to frequency {}".format(curr_freq))
                 ata_control.set_freq(curr_freq, curr_ant_string)
 
                 onoff_observations(curr_ant_dict,obs_set_id,curr_freq,fpga_file,current_source,repetitions,ncaptures,az_offset,el_offset)
