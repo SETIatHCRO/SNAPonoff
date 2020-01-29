@@ -5,7 +5,7 @@ def get_data(snap, auto_cross):
     d = np.array(struct.unpack('>%dl' % (x['length']/4), x['data']))
     # Calculate Frequency scale of plots
     # d array holds twice as many values as there are freq channels (either xx & yy, or xy_r & xy_i
-    frange = np.linspace(args.rfc - (args.srate - args.ifc), args.rfc - (args.srate - args.ifc) + args.srate/2., d.shape[0]/2)
+    frange = np.linspace(args.rfc - (args.srate - args.ifc), args.rfc - (args.srate - args.ifc) + args.srate/2., d.shape[0]//2)
     # Make two plots -- either xx, yy. Or abs(xy), phase(xy)
     if auto_cross == "auto":
         xx = d[0::2]
@@ -94,7 +94,8 @@ while(True):
         ax[1].clear()
         ax[0].plot(frange, d0)
         ax[1].plot(frange, d1)
-        fig.canvas.draw()
-        #plt.show()
+        #fig.canvas.draw()
+        plt.show()
+        plt.pause(0.001)
     except KeyboardInterrupt:
         exit()
