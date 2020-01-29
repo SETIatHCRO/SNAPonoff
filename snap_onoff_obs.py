@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+
 
 '''
  Name: snap_obs.py
@@ -28,10 +29,12 @@ import sys
 import logging
 from optparse import OptionParser
 
-from ATATools import ata_control,logger_defaults,snap_array_helpers,obs_db,ata_positions
-import ATAComm 
-import onoff_db
 from SNAPobs import snap_defaults,snap_observations
+from ATATools import ata_control,logger_defaults,ata_positions,snap_array_helpers
+from ATATools import obs_db
+import ATAComm 
+
+import onoff_db
 
 default_fpga_file = snap_defaults.spectra_snap_file
 default_captures = 16

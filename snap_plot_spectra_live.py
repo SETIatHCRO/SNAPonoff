@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 def get_data(snap, auto_cross):
     x,t = snap.snapshots.vacc_ss_ss.read_raw()
@@ -19,8 +19,11 @@ import argparse
 import casperfpga
 import time
 import numpy as np
+#import matplotlib
+#matplotlib.use('Qt4Agg')
 import matplotlib.pyplot as plt
 import struct
+import sys
 from ATATools import ata_control
 
 parser = argparse.ArgumentParser(description='Plot ADC Histograms and Spectra',
@@ -44,27 +47,27 @@ assert args.ant in ["auto", "cross"]
 
 if args.rfc is None:
     try:
-        print "Trying to get sky frequency tuning from ATA control system"
+        print("Trying to get sky frequency tuning from ATA control system")
         args.rfc = ata_control.get_sky_freq()
     except:
-        print "Failed! Using default tuning of 629.1452 MHz"
+        print("Failed! Using default tuning of 629.1452 MHz")
         args.rfc = 629.1452
 
-print "Using RF center frequency of %.2f" % args.rfc
-print "Using IF center frequency of %.2f" % args.ifc
+print("Using RF center frequency of %.2f" % args.rfc)
+print("Using IF center frequency of %.2f" % args.ifc)
 
 
-print "Connecting to %s" % args.host
+print("Connecting to %s" % args.host)
 snap = casperfpga.CasperFpga(args.host)
-print "Interpretting design data for %s with %s" % (args.host, args.fpgfile)
+print("Interpretting design data for %s with %s" % (args.host, args.fpgfile))
 snap.get_system_information(args.fpgfile)
 
-print "Figuring out accumulation length"
+print("Figuring out accumulation length")
 acc_len = float(snap.read_int('timebase_sync_period') / (4096 / 4))
-print "Accumulation length is %f" % acc_len
+print("Accumulation length is %f" % acc_len)
 
 mux_sel = {'auto':0, 'cross':1}
-print "Setting snapshot select to %s (%d)" % (args.ant, mux_sel[args.ant])
+print("Setting snapshot select to %s (%d)" % (args.ant, mux_sel[args.ant]))
 snap.write_int('vacc_ss_sel', mux_sel[args.ant])
 
 
@@ -81,13 +84,17 @@ else:
     ax[1].set_xlabel("Frequency [MHz]")
 
 # Update plot contents
+#import pdb
+#import time
 while(True):
     try:
         frange, d0, d1 = get_data(snap, args.ant)
+        #pdb.set_trace()
         ax[0].clear()
         ax[1].clear()
         ax[0].plot(frange, d0)
         ax[1].plot(frange, d1)
         fig.canvas.draw()
+        #plt.show()
     except KeyboardInterrupt:
         exit()
