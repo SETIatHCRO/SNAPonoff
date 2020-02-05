@@ -138,6 +138,10 @@ def main():
 
     if options.ants:
         ant_str = options.ants
+    else: 
+        if not options.configfile:
+            logger.error("antennas were not provided and no config file")
+            raise RuntimeError("no antenna string")
 
     if options.obs_set: 
         #todo: check if that ID exits
@@ -152,9 +156,17 @@ def main():
 
     if options.freqs:
         freq_str = options.freqs
+    else: 
+        if not options.configfile:
+            logger.error("frequencies were not provided and no config file")
+            raise RuntimeError("no freq string")
 
     if options.pointings:
         pointings_str = options.pointings
+    else: 
+        if not options.configfile:
+            logger.error("pointings (sources) were not provided and no config file")
+            raise RuntimeError("no pointings string")
 
     offs = snap_array_helpers.string_to_numeric_array(options.off)
     az_offset = offs[0]
