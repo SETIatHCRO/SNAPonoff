@@ -197,7 +197,7 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
 
     logger.info(info_string)
     logger.warning("Communication disabled, edit code")
-    #ATAComm.sendMail("SNAP Obs started",info_string)
+    ATAComm.sendMail("SNAP Obs started",info_string)
     #ATAComm.postSlackMsg(info_string)
 
     try:
@@ -238,11 +238,8 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
         ata_control.release_antennas(ant_list, True)
         raise
 
-    
     current_source = None
     new_antennas = True
-    #snap_cli.set_state(snap_cli.PROGRAM_STATE_RUN)
-    #snap_cli.server_thread()
 
     logger.info("starting observations")
     
@@ -303,17 +300,22 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
             onoff_db.remove_antennas_from_dict(ant_groups,curr_ant_dict);
             
     
+        ATAComm.sendMail("SNAP Obs End","Finishing measurements - success")
+        ATAComm.postSlackMsg("Finishing measurements - success")
     except KeyboardInterrupt:
         logger.info("Keyboard interuption")
+        ATAComm.sendMail("SNAP Obs End","Finishing measurements - keyboard interrupt, obsid {}".format(obs_set_id))
+        #ATAComm.postSlackMsg("Finishing measurements - keyboard interrupt")
     except:
         logger.exception("something went wrong")
+        ATAComm.sendMail("SNAP Obs End","Finishing measurements - failed, obsid {}".format(obs_set_id))
+        #ATAComm.postSlackMsg("Finishing measurements - failed, obsid".format(obs_set_id))
         raise
     finally: 
         logger.info("shutting down")
-        ATAComm.sendMail("SNAP Obs End","Finishing measurements")
-        #ata_control.release_antennas(ant_list, True)
-        ata_control.release_antennas(ant_list, False)
-        logger.warning("not parking the antennas!")
+        ata_control.release_antennas(ant_list, True)
+        #ata_control.release_antennas(ant_list, False)
+        #logger.warning("not parking the antennas!")
 
 if __name__== "__main__":
     main()
