@@ -62,8 +62,14 @@ def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,nca
             filefragment = "{0!s}_{1:03d}".format(on_or_off,rep)
             if(on_or_off == "on" and rep == 0):
                 attendict = snap_observations.setRMS(ant_dict,fpga_file,default_rms)
+            if(on_or_off == "on"):
+                caz = 0.0
+                cel = 0.0
+            else:
+                caz = az_offset
+                cel = el_offset
             cobsid = snap_observations.record_same(ant_dict,freq,source,ncaptures,
-                    "ON-OFF","ataonoff",desc,filefragment,"SNAP",az_offset,el_offset,fpga_file,obs_set_id)
+                    "ON-OFF","ataonoff",desc,filefragment,"SNAP",caz,cel,fpga_file,obs_set_id)
 
             obs_db.updateAttenVals(cobsid,attendict)
             obsids.append(cobsid)
