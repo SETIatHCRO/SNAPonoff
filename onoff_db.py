@@ -20,6 +20,9 @@ def get_all_meas_dict(setid,antenna_list):
     mydb = ATASQL.connectObsDb()
     mycursor = mydb.cursor()
 
+    if not antenna_list:
+        logger.warning('antenna list empty for id {}'.format(setid))
+        return None
 
     insertcmd_part = ("select recordings.freq,recordings.description,recordings.id, "
             "rec_ants.ant,rec_ants.az,rec_ants.el "
@@ -65,6 +68,7 @@ def get_all_meas_dict(setid,antenna_list):
 def get_obs_params(setid,sources,ant_snap_dictionary,freq_list):
 
     all_antennas_list = snap_array_helpers.dict_list_to_list(ant_snap_dictionary)
+    logger= logger_defaults.getModuleLogger(__name__)
 
     meas_dictionary = get_all_meas_dict(setid,all_antennas_list)
 
@@ -97,8 +101,6 @@ def get_obs_params(setid,sources,ant_snap_dictionary,freq_list):
                         todo_freq_set.update(diffset)
                         break
                 else:
-                    #this part of the code was not tested
-                    logger.warning("TEST THIS!")
                     outputDict[sk] = cant
                     todo_freq_set.update(freq_list)
                     break 
