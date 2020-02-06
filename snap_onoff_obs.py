@@ -69,7 +69,7 @@ def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,nca
             obsids.append(cobsid)
     
     #if we got to this point without raising an exception, we are marking all measurements as OK
-    logger.info("marking observations {} as OK".format(', '.join(obsids)))
+    logger.info("marking observations {} as OK".format(', '.join(map(str,obsids))))
     obs_db.markRecordingssOK(obsids)
 
 def remove_dups(duplicate): 

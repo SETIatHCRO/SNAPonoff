@@ -43,11 +43,10 @@ def get_all_meas_dict(setid,antenna_list):
         mydb.close()
         return None
     
-    logger.warning("TEST THIS!")
     returndict = {}
     for (freq,desc,obsid,ant,az,el) in myiterator:
         if ant not in returndict:
-            cdict = {'freq':[],'decs':[],'obsid':[],'az':[],'el':[]}
+            cdict = {'freq':[],'desc':[],'obsid':[],'az':[],'el':[]}
             returndict[ant] = cdict
 
         returndict[ant]['freq'].append(freq)
@@ -72,8 +71,6 @@ def get_obs_params(setid,sources,ant_snap_dictionary,freq_list):
     snapKeys = ant_snap_dictionary.keys()
     outputDict = {}
     if meas_dictionary:
-        import pdb
-        pdb.set_trace()
 
         #using sets because it automatically removes duplicates
         #we are allowing to re-measure some frequencies on some 
@@ -93,13 +90,15 @@ def get_obs_params(setid,sources,ant_snap_dictionary,freq_list):
                 if cant in antennas_got:
                     #antenna was measured, testing freq list
                     flist = meas_dictionary[cant]['freq']
-                    diffset = set(flist) - freq_set
+                    diffset = freq_set - set(flist)
                     #we have some unmeasured freqencies for that antenna
                     if diffset:
                         outputDict[sk] = cant
                         todo_freq_set.update(diffset)
                         break
                 else:
+                    #this part of the code was not tested
+                    logger.warning("TEST THIS!")
                     outputDict[sk] = cant
                     todo_freq_set.update(freq_list)
                     break 
