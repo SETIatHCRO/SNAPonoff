@@ -305,7 +305,7 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
             
     
         ATAComm.sendMail("SNAP Obs End","Finishing measurements - success")
-        ATAComm.postSlackMsg("Finishing measurements - success")
+        #ATAComm.postSlackMsg("Finishing measurements - success")
     except KeyboardInterrupt:
         logger.info("Keyboard interuption")
         ATAComm.sendMail("SNAP Obs End","Finishing measurements - keyboard interrupt, obsid {}".format(obs_set_id))
