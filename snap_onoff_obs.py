@@ -261,8 +261,6 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
                 if not current_source:
                     errormsg = 'no source is up ({}). terminating observation set {}'.format(','.join(pointings),obs_set_id)
                     logger.error(errormsg)
-                    ATAComm.sendMail("SNAP Obs Error",errormsg)
-                    ATAComm.postSlackMsg(info_string)
                     raise RuntimeError(errormsg)
 
 
@@ -306,10 +304,11 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
         logger.info("Keyboard interuption")
         ATAComm.sendMail("SNAP Obs End","Finishing measurements - keyboard interrupt, obsid {}".format(obs_set_id))
         #ATAComm.postSlackMsg("Finishing measurements - keyboard interrupt")
-    except:
+    except Exception, e:
         logger.exception("something went wrong")
-        ATAComm.sendMail("SNAP Obs End","Finishing measurements - failed, obsid {}".format(obs_set_id))
-        #ATAComm.postSlackMsg("Finishing measurements - failed, obsid".format(obs_set_id))
+        errmsg = "Finishing measurements - failed, obsid {}: {}".format(obs_set_id,e)
+        ATAComm.sendMail("SNAP Obs End",errmsg)
+        #ATAComm.postSlackMsg(errmsg)
         raise
     finally: 
         logger.info("shutting down")
