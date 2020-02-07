@@ -204,7 +204,7 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
     logger.info(info_string)
     logger.warning("Communication disabled, edit code")
     ATAComm.sendMail("SNAP Obs started",info_string)
-    #ATAComm.postSlackMsg(info_string)
+    ATAComm.postSlackMsg(info_string)
 
     try:
         ant_groups = ata_control.get_snap_dictionary(ant_list)
@@ -305,16 +305,16 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
             
     
         ATAComm.sendMail("SNAP Obs End","Finishing measurements - success")
-        #ATAComm.postSlackMsg("Finishing measurements - success")
+        ATAComm.postSlackMsg("Finishing measurements - success")
     except KeyboardInterrupt:
         logger.info("Keyboard interuption")
         ATAComm.sendMail("SNAP Obs End","Finishing measurements - keyboard interrupt, obsid {}".format(obs_set_id))
-        #ATAComm.postSlackMsg("Finishing measurements - keyboard interrupt")
+        ATAComm.postSlackMsg("Finishing measurements - keyboard interrupt")
     except Exception, e:
         logger.exception("something went wrong")
         errmsg = "Finishing measurements - failed, obsid {}: {}".format(obs_set_id,e)
         ATAComm.sendMail("SNAP Obs End",errmsg)
-        #ATAComm.postSlackMsg(errmsg)
+        ATAComm.postSlackMsg(errmsg)
         raise
     finally: 
         logger.info("shutting down")
