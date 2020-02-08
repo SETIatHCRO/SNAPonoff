@@ -9,7 +9,8 @@ Created Jan 2020
 @author: jkulpa
 """
 
-from ATATools import obs_db,logger_defaults,snap_array_helpers
+from ATATools import logger_defaults,snap_array_helpers
+#from ATAobs import obs_db
 import ATASQL
 
 

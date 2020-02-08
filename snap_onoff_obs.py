@@ -31,7 +31,7 @@ from optparse import OptionParser
 
 from SNAPobs import snap_defaults,snap_observations
 from ATATools import ata_control,logger_defaults,ata_positions,snap_array_helpers
-from ATATools import obs_db
+from ATAobs import obs_db
 import ATAComm 
 
 import onoff_db
@@ -97,7 +97,7 @@ def main():
                         help ='Number of data captures (for each correlation product)')
     parser.add_option('-r', dest='repetitions', type=int, action="store", default=default_repetitions,
                         help ='Number of repetitions of on-off pairs')
-    parser.add_option('-i', dest='obs_set', type=long, action="store", default=None,
+    parser.add_option('-i', dest='obs_set', type=int, action="store", default=None,
                         help ='Observation set ID. If present it will continue previous observations')
     parser.add_option('-a', dest='ants', type=str, action="store", default=None,
                         help ='Comma separated array list of ATA antennas, eg: \"2j,2d,4k\"')
