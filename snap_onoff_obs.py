@@ -48,6 +48,10 @@ def onoff_observations(ant_dict,obs_set_id,freq,fpga_file,source,repetitions,nca
     """
     logger= logger_defaults.getModuleLogger(__name__)
 
+    if az_offset == 0.0 and el_offset == 0.0:
+        logger.error("both azimuth and elevation offset are 0. It is NOT how on-off observations should be made")
+        raise RuntimeError("az and el offset are both 0")
+
     if not obs_set_id:
         logger.error("no set id for On Off observations")
         raise RuntimeError("no set id")
