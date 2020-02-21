@@ -254,6 +254,7 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
     logger.info("starting observations")
     
     try:
+        ata_control.try_on_lnas(ant_list)
         while(1):
             new_antennas = True
             #gets a antenna dictionary and 
