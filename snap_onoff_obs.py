@@ -132,8 +132,12 @@ def main():
 
     try:
         if options.configfile:
-            import ConfigParser
-            configParser = ConfigParser.RawConfigParser()   
+            try:
+                import ConfigParser
+                configParser = ConfigParser.RawConfigParser()   
+            except ImportError:
+                import configparser
+                configParser = configparser.RawConfigParser()
             configParser.read(options.configfile)
             
             ant_str = configParser.get('measurement', 'antennas')
@@ -315,7 +319,7 @@ def doOnOffObservations(ant_str,freq_str, pointings_str,az_offset,el_offset,repe
         logger.info("Keyboard interuption")
         ATAComm.sendMail("SNAP Obs End","Finishing measurements - keyboard interrupt, obsid {}".format(obs_set_id))
         ATAComm.postSlackMsg("Finishing measurements - keyboard interrupt")
-    except Exception, e:
+    except Exception as e:
         logger.exception("something went wrong")
         errmsg = "Finishing measurements - failed, obsid {}: {}".format(obs_set_id,e)
         ATAComm.sendMail("SNAP Obs End",errmsg)
