@@ -115,15 +115,22 @@ def main():
                         help ="config file with measurement parameters")
     parser.add_option('-v', '--verbose', dest='verbose', action="store_true", default=False,
                         help ="More on-screen information")
+    parser.add_option('--no-file', dest='nofile', action="store_true", default=False,
+                        help ="log to screen, not to file")
     parser.add_option('-m', '--mail', dest='mail', action="store", default=None,
                         help ="The recipient e-mail address (if different from default)")
 
     (options,args) = parser.parse_args()
 
     if(options.verbose):
-        logger = logger_defaults.getProgramLogger("SNAP_ON_OFF_OBS",loglevel=logging.INFO)
+        loglevel=logging.INFO
     else:
-        logger = logger_defaults.getProgramLogger("SNAP_ON_OFF_OBS",loglevel=logging.WARNING)
+        loglevel=logging.WARNING
+
+    if(options.nofile):
+        logger = logger_defaults.getProgramLogger("SNAP_ON_OFF_OBS",loglevel)
+    else:
+        logger = logger_defaults.getFileLogger("SNAP_ON_OFF_OBS",'/var/log/ata/onoff.log',loglevel)
 
     if len(sys.argv) <= 1:
         logger.warning("no options provided")
