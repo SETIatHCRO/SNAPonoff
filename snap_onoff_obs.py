@@ -35,6 +35,7 @@ from ATAobs import obs_db
 import ATAComm 
 
 import onoff_db
+from six.moves import configparser
 
 default_fpga_file = snap_defaults.spectra_snap_file
 default_captures = 16
@@ -139,12 +140,7 @@ def main():
 
     try:
         if options.configfile:
-            try:
-                import ConfigParser
-                configParser = ConfigParser.RawConfigParser()   
-            except ImportError:
-                import configparser
-                configParser = configparser.RawConfigParser()
+            configParser = configparser.RawConfigParser()
             configParser.read(options.configfile)
             
             ant_str = configParser.get('measurement', 'antennas')
